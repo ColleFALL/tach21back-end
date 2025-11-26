@@ -8,7 +8,7 @@ import userRoutes from "./routes/userRoutes.js";
 // import testRoutes from "./routes/testRoutes.js";
 
 dotenv.config();
-
+const bcrypt = require('bcryptjs');
 const app = express();
 
 // Middlewares
