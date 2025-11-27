@@ -1,135 +1,67 @@
 // controllers/transactionController.js
-import Transaction from "../models/Transaction.js";
 import Account from "../models/Account.js";
-import User from "../models/User.js";
+import Transaction from "../models/Transaction.js";
 
-// POST /api/transactions
-export const createTransaction = async (req, res) => {
+// 🟢 DEPOT D'ARGENT
+// POST /api/transactions/deposit
+export const deposit = async (req, res) => {
   try {
-    const {
-      userId,
-      fromAccountId,
-      toAccountId,
-      type,
-      amount,
-      description,
-      category,
-    } = req.body;
-
-    if (!userId || !type || !amount) {
-      return res
-        .status(400)
-        .json({ message: "userId, type et amount sont obligatoires." });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé." });
-    }
-
-    // Optionnel : vérifier les comptes si fournis
-    let fromAccount = null;
-    let toAccount = null;
-
-    if (fromAccountId) {
-      fromAccount = await Account.findById(fromAccountId);
-      if (!fromAccount) {
-        return res
-          .status(404)
-          .json({ message: "Compte source introuvable." });
-      }
-    }
-
-    if (toAccountId) {
-      toAccount = await Account.findById(toAccountId);
-      if (!toAccount) {
-        return res
-          .status(404)
-          .json({ message: "Compte destination introuvable." });
-      }
-    }
-
-    // Générer une référence simple (à améliorer plus tard)
-    const reference = `TX-${Date.now()}`;
-
-    const transaction = await Transaction.create({
-      user: userId,
-      fromAccount: fromAccountId || null,
-      toAccount: toAccountId || null,
-      type,
-      amount,
-      description,
-      category,
-      reference,
-    });
-
-    // TODO plus tard : mise à jour des soldes des comptes
-
-    return res.status(201).json({
-      message: "Transaction créée avec succès.",
-      transaction,
-    });
+    // TODO: implémenter la logique de dépôt
+    return res
+      .status(501)
+      .json({ message: "Dépôt non encore implémenté (à faire)" });
   } catch (error) {
-    console.error("Erreur createTransaction :", error);
-    return res.status(500).json({ message: "Erreur serveur." });
+    console.error("Erreur dépôt :", error.message);
+    return res
+      .status(500)
+      .json({ message: "Erreur serveur", error: error.message });
   }
 };
 
-// GET /api/transactions (avec filtres)
+// 🔵 RETRAIT
+// POST /api/transactions/withdraw
+export const withdraw = async (req, res) => {
+  try {
+    // TODO: implémenter la logique de retrait
+    return res
+      .status(501)
+      .json({ message: "Retrait non encore implémenté (à faire)" });
+  } catch (error) {
+    console.error("Erreur retrait :", error.message);
+    return res
+      .status(500)
+      .json({ message: "Erreur serveur", error: error.message });
+  }
+};
+
+// 🟣 TRANSFERT ENTRE COMPTES
+// POST /api/transactions/transfer
+export const transfer = async (req, res) => {
+  try {
+    // TODO: implémenter la logique de transfert
+    return res
+      .status(501)
+      .json({ message: "Transfert non encore implémenté (à faire)" });
+  } catch (error) {
+    console.error("Erreur transfert :", error.message);
+    return res
+      .status(500)
+      .json({ message: "Erreur serveur", error: error.message });
+  }
+};
+
+// 🧾 HISTORIQUE DES TRANSACTIONS DU USER CONNECTÉ
+// GET /api/transactions
 export const getTransactions = async (req, res) => {
   try {
-    const { userId, type, minAmount, maxAmount, startDate, endDate } = req.query;
-
-    const filter = {};
-
-    if (userId) {
-      filter.user = userId;
-    }
-
-    if (type) {
-      filter.type = type;
-    }
-
-    if (minAmount || maxAmount) {
-      filter.amount = {};
-      if (minAmount) filter.amount.$gte = Number(minAmount);
-      if (maxAmount) filter.amount.$lte = Number(maxAmount);
-    }
-
-    if (startDate || endDate) {
-      filter.transactionDate = {};
-      if (startDate) filter.transactionDate.$gte = new Date(startDate);
-      if (endDate) filter.transactionDate.$lte = new Date(endDate);
-    }
-
-    const transactions = await Transaction.find(filter)
-      .sort({ transactionDate: -1 })
-      .populate("fromAccount toAccount", "accountNumber label")
-      .populate("user", "fullName email");
-
-    return res.json(transactions);
+    // TODO: implémenter la récupération des transactions du user
+    return res
+      .status(501)
+      .json({ message: "Historique non encore implémenté (à faire)" });
   } catch (error) {
-    console.error("Erreur getTransactions :", error);
-    return res.status(500).json({ message: "Erreur serveur." });
-  }
-};
-
-// GET /api/transactions/:id
-export const getTransactionById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const transaction = await Transaction.findById(id)
-      .populate("fromAccount toAccount", "accountNumber label")
-      .populate("user", "fullName email");
-
-    if (!transaction) {
-      return res.status(404).json({ message: "Transaction non trouvée." });
-    }
-
-    return res.json(transaction);
-  } catch (error) {
-    console.error("Erreur getTransactionById :", error);
-    return res.status(500).json({ message: "Erreur serveur." });
+    console.error("Erreur getTransactions :", error.message);
+    return res
+      .status(500)
+      .json({ message: "Erreur serveur", error: error.message });
   }
 };

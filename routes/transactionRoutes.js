@@ -1,20 +1,29 @@
 // routes/transactionRoutes.js
 import express from "express";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
 import {
-  createTransaction,
+  deposit,
+  withdraw,
+  transfer,
   getTransactions,
-  getTransactionById,
 } from "../controllers/transactionController.js";
 
 const router = express.Router();
 
-// Créer une transaction
-router.post("/", createTransaction);
+// Dépôt
+// POST /api/transactions/deposit
+router.post("/deposit", authMiddleware, deposit);
 
-// Liste des transactions (avec filtres en query)
-router.get("/", getTransactions);
+// Retrait
+// POST /api/transactions/withdraw
+router.post("/withdraw", authMiddleware, withdraw);
 
-// Détail d'une transaction
-router.get("/:id", getTransactionById);
+// Transfert entre comptes
+// POST /api/transactions/transfer
+router.post("/transfer", authMiddleware, transfer);
+
+// Historique
+// GET /api/transactions
+router.get("/", authMiddleware, getTransactions);
 
 export default router;

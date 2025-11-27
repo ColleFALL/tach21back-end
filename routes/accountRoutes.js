@@ -1,5 +1,5 @@
-// routes/accountRoutes.js
 import express from "express";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
 import {
   createAccount,
   getAccountsByUser,
@@ -9,12 +9,12 @@ import {
 const router = express.Router();
 
 // Créer un compte
-router.post("/", createAccount);
+router.post("/", authMiddleware, createAccount);
 
-// Lister les comptes d'un utilisateur
-router.get("/by-user/:userId", getAccountsByUser);
+// Liste des comptes du user connecté
+router.get("/", authMiddleware, getAccountsByUser);
 
-// Détails d'un compte
-router.get("/:accountId", getAccountById);
+// Récupérer un compte par ID
+router.get("/:accountId", authMiddleware, getAccountById);
 
 export default router;

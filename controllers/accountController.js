@@ -9,17 +9,23 @@ const generateAccountNumber = () => {
   return prefix + randomPart;
 };
 
-// POST /api/accounts
+// ✅ POST /api/accounts
+// Créer un compte pour l'utilisateur connecté (req.user)
 export const createAccount = async (req, res) => {
   try {
-    const { userId, type, currency, initialBalance } = req.body;
+    console.log("📥 Body reçu dans createAccount :", req.body);
+    console.log("👤 User connecté :", req.user);
 
-    // 1️⃣ Vérifier les données
-    if (!userId) {
-      return res.status(400).json({ message: "userId est requis" });
+    const { type, currency, initialBalance } = req.body;
+
+    // 1️⃣ Vérifier que l'utilisateur est bien authentifié (normalement assuré par authMiddleware)
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Utilisateur non authentifié" });
     }
 
-    // 2️⃣ Vérifier que l'utilisateur existe
+    const userId = req.user.id;
+
+    // 2️⃣ Vérifier que l'utilisateur existe (optionnel si tu fais confiance à ton token)
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "Utilisateur non trouvé" });
@@ -39,7 +45,7 @@ export const createAccount = async (req, res) => {
       number: accountNumber,
       type: type || "COURANT",
       currency: currency || "XOF",
-      balance: initialBalance || 0,
+      balance: initialBalance != null ? Number(initialBalance) : 0,
     });
 
     // 5️⃣ Réponse
@@ -56,10 +62,15 @@ export const createAccount = async (req, res) => {
   }
 };
 
-// GET /api/accounts/by-user/:userId
+// ✅ GET /api/accounts
+// Récupérer tous les comptes de l'utilisateur connecté
 export const getAccountsByUser = async (req, res) => {
   try {
-    const { userId } = req.params;
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Utilisateur non authentifié" });
+    }
+
+    const userId = req.user.id;
 
     const accounts = await Account.find({ user: userId });
 
@@ -76,15 +87,31 @@ export const getAccountsByUser = async (req, res) => {
   }
 };
 
-// GET /api/accounts/:accountId
+// ✅ GET /api/accounts/:accountId
+// Récupérer un compte précis, mais seulement s'il appartient au user connecté
 export const getAccountById = async (req, res) => {
   try {
-    const { accountId } = req.params;
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Utilisateur non authentifié" });
+    }
 
-    const account = await Account.findById(accountId).populate("user", "firstname lastname email");
+    const { accountId } = req.params;
+    const userId = req.user.id;
+
+    const account = await Account.findById(accountId).populate(
+      "user",
+      "fullName email"
+    );
 
     if (!account) {
       return res.status(404).json({ message: "Compte non trouvé" });
+    }
+
+    // Vérifier que le compte appartient bien au user connecté
+    if (account.user._id.toString() !== userId.toString()) {
+      return res
+        .status(403)
+        .json({ message: "Accès interdit à ce compte" });
     }
 
     return res.status(200).json({
