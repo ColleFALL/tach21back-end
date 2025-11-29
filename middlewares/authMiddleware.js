@@ -1,32 +1,40 @@
+// middlewares/authMiddleware.js
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
 
-export const authMiddleware = async (req, res, next) => {
+export const authMiddleware = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    console.log("Authorization header reçu :", req.headers.authorization);
+    console.log("Authorization header reçu :", authHeader);
 
-
-    // Pas de token ?
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Accès non autorisé" });
+      return res
+        .status(401)
+        .json({ message: "Accès non autorisé (pas de Bearer)" });
     }
 
     const token = authHeader.split(" ")[1];
 
-    // Vérifier token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Token décodé :", decoded);
 
-    // Récupérer l'utilisateur
-    const user = await User.findById(decoded.id).select("-passwordHash");
+    // ✅ On récupère l'ID dans le token (userId, id ou _id)
+    const userId = decoded.userId || decoded.id || decoded._id;
 
-    if (!user) {
-      return res.status(401).json({ message: "Utilisateur introuvable" });
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ message: "Token invalide (id manquant dans le token)" });
     }
 
-    req.user = user; // 👈 très important
+    // ✅ On stocke l'ID utilisateur dans la requête
+    req.userId = userId.toString();
+    console.log("✅ Utilisateur authentifié (userId) :", req.userId);
+
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Token invalide", error: error.message });
+    console.error("Erreur authMiddleware :", error.message);
+    return res
+      .status(401)
+      .json({ message: "Token invalide", error: error.message });
   }
 };
