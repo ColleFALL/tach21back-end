@@ -15,7 +15,7 @@ const accountSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["COURANT", "EPARGNE"],
+      enum: ["COURANT", "EPARGNE","BUSINESS"],
       default: "COURANT",
     },
     balance: {

@@ -1,10 +1,8 @@
-
 // models/User.js
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-// 1️⃣ Définition du schéma User
 const userSchema = new Schema(
   {
     fullName: {
@@ -36,14 +34,36 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+
+    // Optionnels pour EPIC 5
+    avatarUrl: {
+      type: String,
+      default: null,
+    },
+    pin: {
+      type: String, // on peut garder string (ex: "1234")
+      default: null,
+    },
+
+
+    preferences: {
+  language: {
+    type: String,
+    enum: ["fr", "en"],
+    default: "fr"
   },
+  notifications: {
+    email: { type: Boolean, default: true },
+    sms: { type: Boolean, default: false },
+    push: { type: Boolean, default: true }
+  }
+}
+  },
+  
   {
-    timestamps: true, // ajoute createdAt et updatedAt automatiquement
+    timestamps: true,
   }
 );
 
-// 2️⃣ Création du modèle basé sur le schéma
 const User = mongoose.model("User", userSchema);
-
-// 3️⃣ Export du modèle
 export default User;

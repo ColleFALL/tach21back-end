@@ -7,6 +7,9 @@ import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";    
 import accountRoutes from "./routes/accountRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+import preferenceRoutes from "./routes/preferenceRoutes.js";
+
 
 dotenv.config();
 console.log(" MONGO_URI lu par le serveur :", process.env.MONGO_URI);
@@ -21,6 +24,8 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);           // pour register/login (collègue)
 app.use("/api/accounts", accountRoutes);    // pour les comptes
 app.use("/api/transactions", transactionRoutes); // pour les transactions 
+app.use("/api", profileRoutes); //pour le parametre et profile
+app.use("/api", preferenceRoutes); //pour les pereferences
 
 // Connexion MongoDB
 mongoose

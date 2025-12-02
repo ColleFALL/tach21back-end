@@ -15,6 +15,8 @@ const generateAccountNumber = () => {
  * Créer un nouveau compte (EPARGNE ou COURANT) pour l'utilisateur connecté
  * Utilise req.userId (fourni par authMiddleware)
  */
+// controllers/accountController.js (dans createAccount)
+
 export const createAccount = async (req, res) => {
   try {
     console.log("📥 Body reçu dans createAccount :", req.body);
@@ -42,13 +44,28 @@ export const createAccount = async (req, res) => {
       return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
 
-    // 3️⃣ Types de comptes autorisés
-    const allowedTypes = ["COURANT", "EPARGNE"];
-    const finalType = type || "EPARGNE"; // par défaut : on ouvre un compte EPARGNE
+    // 3️⃣ Types de comptes autorisés (hors compte courant auto)
+    const allowedTypes = ["EPARGNE", "BUSINESS"];
+
+    if (!type) {
+      return res
+        .status(400)
+        .json({ message: "Le type de compte est obligatoire (EPARGNE ou BUSINESS)" });
+    }
+
+    const finalType = type.toUpperCase();
 
     if (!allowedTypes.includes(finalType)) {
-      return res.status(400).json({ message: "Type de compte invalide" });
+      return res.status(400).json({
+        message: "Type de compte invalide. Utilisez EPARGNE ou BUSINESS.",
+      });
     }
+
+    // (Optionnel) Empêcher plusieurs comptes BUSINESS du même type si tu veux
+    // const existingSameType = await Account.findOne({ user: userObjectId, type: finalType });
+    // if (existingSameType) {
+    //   return res.status(400).json({ message: `Un compte ${finalType} existe déjà` });
+    // }
 
     // 4️⃣ Générer un numéro de compte unique
     let accountNumber;
@@ -60,18 +77,16 @@ export const createAccount = async (req, res) => {
 
     // 5️⃣ Créer le compte
     const account = await Account.create({
-      user: userObjectId, // ✅ lien avec l'utilisateur
+      user: userObjectId,
       number: accountNumber,
       type: finalType,
-      balance:
-        initialBalance != null ? Number(initialBalance) : 0,
+      balance: initialBalance != null ? Number(initialBalance) : 0,
       currency: currency || "XOF",
       status: "ACTIVE",
     });
 
-    // 6️⃣ Réponse
     return res.status(201).json({
-      message: "Compte créé avec succès",
+      message: `Compte ${finalType} créé avec succès`,
       account,
     });
   } catch (error) {
@@ -97,20 +112,12 @@ export const getAccountsByUser = async (req, res) => {
         .json({ message: "Utilisateur non authentifié (userId manquant)" });
     }
 
-    let userObjectId;
-    try {
-      userObjectId = new mongoose.Types.ObjectId(req.userId);
-    } catch (e) {
-      return res
-        .status(400)
-        .json({ message: "userId invalide dans le token" });
-    }
-
-    const accounts = await Account.find({ user: userObjectId });
+    // 🟢 On laisse Mongoose convertir la string req.userId en ObjectId
+    const accounts = await Account.find({ user: req.userId });
 
     console.log(
       "🔎 Comptes trouvés pour user",
-      userObjectId.toString(),
+      req.userId,
       "=>",
       accounts.length
     );
@@ -127,6 +134,7 @@ export const getAccountsByUser = async (req, res) => {
     });
   }
 };
+
 
 /**
  * 🔹 GET /api/accounts/:accountId
