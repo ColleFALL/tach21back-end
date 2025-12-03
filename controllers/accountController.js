@@ -183,3 +183,38 @@ export const getAccountById = async (req, res) => {
     });
   }
 };
+
+// 🔹 GET /api/accounts/summary
+export const getAccountsSummary = async (req, res) => {
+  try {
+    if (!req.userId) {
+      return res
+        .status(401)
+        .json({ message: "Utilisateur non authentifié (userId manquant)" });
+    }
+
+    const accounts = await Account.find({ user: req.userId });
+
+    const accountsCount = accounts.length;
+
+    const totalBalance = accounts.reduce(
+      (sum, acc) => sum + (acc.balance || 0),
+      0
+    );
+
+    return res.status(200).json({
+      message: "Résumé des comptes récupéré avec succès",
+      summary: {
+        accountsCount,
+        totalBalance,
+        currency: "XOF",
+      },
+    });
+  } catch (error) {
+    console.error("Erreur getAccountsSummary :", error);
+    return res.status(500).json({
+      message: "Erreur serveur lors de la récupération du résumé des comptes",
+      error: error.message,
+    });
+  }
+};

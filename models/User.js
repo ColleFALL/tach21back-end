@@ -46,18 +46,27 @@ const userSchema = new Schema(
     },
 
 
-    preferences: {
-  language: {
-    type: String,
-    enum: ["fr", "en"],
-    default: "fr"
+   preferences: {
+     language: {
+     type: String,
+     enum: ["fr", "en"],
+     default: "fr"
+    },
+    notifications: {
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: false },
+      push: { type: Boolean, default: true }
+    }
   },
-  notifications: {
-    email: { type: Boolean, default: true },
-    sms: { type: Boolean, default: false },
-    push: { type: Boolean, default: true }
-  }
-}
+  resetPasswordToken: {
+   type: String,
+   default: null,
+  },
+  resetPasswordExpires: {
+   type: Date,
+   default: null,
+  },
+
   },
   
   {
