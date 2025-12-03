@@ -8,6 +8,10 @@ import authRoutes from "./routes/authRoutes.js";
 import accountRoutes from "./routes/accountRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
 
+
+
+
+
 dotenv.config();
 console.log(" MONGO_URI lu par le serveur :", process.env.MONGO_URI);
 
