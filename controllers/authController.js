@@ -3,6 +3,8 @@ import User from "../models/User.js";
 import Account from "../models/Account.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+// import crypto from "crypto";
+// import nodemailer from "nodemailer";
 
 const generateAccountNumber = () => {
   const prefix = "SN-";
@@ -141,3 +143,4 @@ export const loginUser = async (req, res) => {
     });
   }
 };
+

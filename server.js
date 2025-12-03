@@ -9,6 +9,8 @@ import accountRoutes from "./routes/accountRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import preferenceRoutes from "./routes/preferenceRoutes.js";
+import supportRoutes from "./routes/supportRoutes.js";
+
 
 
 dotenv.config();
@@ -26,6 +28,7 @@ app.use("/api/accounts", accountRoutes);    // pour les comptes
 app.use("/api/transactions", transactionRoutes); // pour les transactions 
 app.use("/api", profileRoutes); //pour le parametre et profile
 app.use("/api", preferenceRoutes); //pour les pereferences
+app.use("/api", supportRoutes);   // pour le support des mssages
 
 // Connexion MongoDB
 mongoose
