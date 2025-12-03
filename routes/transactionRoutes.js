@@ -12,6 +12,8 @@ const router = express.Router();
 
 // Dépôt
 // POST /api/transactions/deposit
+
+
 router.post("/deposit", authMiddleware, deposit);
 
 // Retrait
@@ -25,5 +27,10 @@ router.post("/transfer", authMiddleware, transfer);
 // Historique
 // GET /api/transactions
 router.get("/", authMiddleware, getTransactions);
+
+//  transfert entre utilisateur
+// GET /api/transfertentreutilisateur
+
+router.post("/transfer/user", authMiddleware, transferUser);
 
 export default router;

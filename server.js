@@ -13,6 +13,10 @@ import supportRoutes from "./routes/supportRoutes.js";
 
 
 
+
+
+
+
 dotenv.config();
 console.log(" MONGO_URI lu par le serveur :", process.env.MONGO_URI);
 
