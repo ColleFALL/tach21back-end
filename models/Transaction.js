@@ -15,11 +15,19 @@ const transactionSchema = new Schema(
     // type d'opération
     type: {
       type: String,
-      enum: ["DEPOSIT", "WITHDRAWAL", "TRANSFER"],
+      enum: [
+        "DEPOSIT",
+        "WITHDRAWAL",
+        "TRANSFER_INTERNAL_DEBIT",
+        "TRANSFER_INTERNAL_CREDIT",
+        "TRANSFER_USER_DEBIT",
+        "TRANSFER_USER_CREDIT",
+        "TRANSFER_EXTERNAL",
+        "BILL_PAYMENT",
+      ],
       required: true,
     },
 
-    // montant
     amount: {
       type: Number,
       required: true,
@@ -45,9 +53,58 @@ const transactionSchema = new Schema(
       default: null,
     },
 
+    // autre utilisateur lié (pour transfert entre utilisateurs)
+    relatedUser: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    // bénéficiaire (transfert externe)
+    beneficiary: {
+      type: Schema.Types.ObjectId,
+      ref: "Beneficiary",
+      default: null,
+    },
+
+    // pour l'idempotence
+    idempotencyKey: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+
+    // référence métier (numéro de facture, motif, etc.)
+    reference: {
+      type: String,
+      trim: true,
+    },
+
     description: {
       type: String,
       trim: true,
+    },
+
+    // champs spécifiques paiement factures
+    serviceCode: {
+      type: String,
+      trim: true,
+    },
+
+    serviceName: {
+      type: String,
+      trim: true,
+    },
+
+    billNumber: {
+      type: String,
+      trim: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["PENDING", "SUCCESS", "FAILED"],
+      default: "SUCCESS",
     },
   },
   { timestamps: true }
