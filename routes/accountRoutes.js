@@ -14,6 +14,7 @@ router.post("/", authMiddleware, createAccount);
 // Liste des comptes du user connecté
 router.get("/", authMiddleware, getAccountsByUser);
 
+
 // Récupérer un compte par ID
 router.get("/:accountId", authMiddleware, getAccountById);
 

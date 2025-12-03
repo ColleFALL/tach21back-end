@@ -27,7 +27,7 @@ export const authMiddleware = (req, res, next) => {
     }
 
     // ✅ On stocke l'ID utilisateur dans la requête
-    req.userId = userId.toString();
+    req.userId = userId.toString();7777777777777777777777777777777777777777
     console.log("✅ Utilisateur authentifié (userId) :", req.userId);
 
     next();
