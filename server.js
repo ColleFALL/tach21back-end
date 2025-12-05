@@ -32,7 +32,7 @@ app.use("/api/transactions", transactionRoutes); // pour les transactions
 app.use("/api", profileRoutes); //pour le parametre et profile
 app.use("/api", preferenceRoutes); //pour les pereferences
 app.use("/api", supportRoutes);   // pour le support des mssages
-app.use("/api/beneficiaries", beneficiaryRoutes); //pour les beneficier
+app.use("/api/beneficiary", beneficiaryRoutes); //pour les beneficier
 
 // Connexion MongoDB
 mongoose

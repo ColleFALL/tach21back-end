@@ -13,20 +13,7 @@ const transactionSchema = new Schema(
     },
 
     // type d'opération
-    type: {
-      type: String,
-      enum: [
-        "DEPOSIT",
-        "WITHDRAWAL",
-        "TRANSFER_INTERNAL_DEBIT",
-        "TRANSFER_INTERNAL_CREDIT",
-        "TRANSFER_USER_DEBIT",
-        "TRANSFER_USER_CREDIT",
-        "TRANSFER_EXTERNAL",
-        "BILL_PAYMENT",
-      ],
-      required: true,
-    },
+    
 
     amount: {
       type: Number,
@@ -77,7 +64,7 @@ const transactionSchema = new Schema(
     // référence métier (numéro de facture, motif, etc.)
     reference: {
       type: String,
-      trim: true,
+      // trim: true,
     },
 
     description: {

@@ -29,15 +29,15 @@ export const createBeneficiary = async (req, res) => {
   }
 };
 
-// GET /api/beneficiaries
-export const getBeneficiaries = async (req, res) => {
+// GET /api/beneficiary
+export const getBeneficiary = async (req, res) => {
   try {
-    const beneficiaries = await Beneficiary.find({ user: req.user.id }).sort({
+    const beneficiary = await Beneficiary.find({ user: req.user.id }).sort({
       createdAt: -1,
     });
-    return res.json({ beneficiaries });
+    return res.json({ beneficiary });
   } catch (error) {
-    console.error("Erreur getBeneficiaries :", error.message);
+    console.error("Erreur getBeneficiary :", error.message);
     return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
