@@ -27,10 +27,11 @@ const accountSchema = new mongoose.Schema(
       default: "XOF",
     },
     status: {
-      type: String,
-      enum: ["ACTIVE", "BLOQUEE", "CLOTUREE"],
-      default: "ACTIVE",
-    },
+     type: String,
+     enum: ["ACTIVE", "BLOCKED", "CLOSED"],
+     default: "ACTIVE",
+   },
+
   },
   { timestamps: true }
 );

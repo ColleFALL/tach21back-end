@@ -10,6 +10,9 @@ import transactionRoutes from "./routes/transactionRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import preferenceRoutes from "./routes/preferenceRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
+import beneficiaryRoutes from "./routes/beneficiaryRoutes.js";
+
+
 
 
 
@@ -29,6 +32,7 @@ app.use("/api/transactions", transactionRoutes); // pour les transactions
 app.use("/api", profileRoutes); //pour le parametre et profile
 app.use("/api", preferenceRoutes); //pour les pereferences
 app.use("/api", supportRoutes);   // pour le support des mssages
+app.use("/api/beneficiary", beneficiaryRoutes); //pour les beneficier
 
 // Connexion MongoDB
 mongoose
