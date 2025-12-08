@@ -6,6 +6,7 @@ import {
   withdraw,
   transfer,
   getTransactions,
+  transferUser,
 } from "../controllers/transactionController.js";
 
 const router = express.Router();

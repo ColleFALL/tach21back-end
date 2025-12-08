@@ -1,5 +1,7 @@
 {
     "recommendations": [
-        "pkief.material-icon-theme"
+        "pkief.material-icon-theme",
+        "postman.postman-for-vscode",
+        "rangav.vscode-thunder-client"
     ]
 }

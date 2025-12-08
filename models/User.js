@@ -36,6 +36,11 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    // pour le mot de passe oublier 
+
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
+    
   },
   {
     timestamps: true, // ajoute createdAt et updatedAt automatiquement
@@ -47,3 +52,6 @@ const User = mongoose.model("User", userSchema);
 
 // 3️⃣ Export du modèle
 export default User;
+
+
+
