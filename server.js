@@ -12,10 +12,6 @@ import preferenceRoutes from "./routes/preferenceRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import beneficiaryRoutes from "./routes/beneficiaryRoutes.js";
 
-
-
-
-
 dotenv.config();
 console.log(" MONGO_URI lu par le serveur :", process.env.MONGO_URI);
 

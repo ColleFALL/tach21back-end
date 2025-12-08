@@ -12,9 +12,8 @@ router.post("/register", registerUser);
 
 // CONNEXION
 router.post("/login", loginUser);
-//Mot de passe oublie
-// router.post("/forgot-password", forgotPassword);
-//reset-password
-// router.post("/reset-password", resetPassword);
+
+//MOT DE PASSE OUBLIER
+
 
 export default router;

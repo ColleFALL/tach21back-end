@@ -58,15 +58,7 @@ const userSchema = new Schema(
       push: { type: Boolean, default: true }
     }
   },
-  resetPasswordToken: {
-   type: String,
-   default: null,
-  },
-  resetPasswordExpires: {
-   type: Date,
-   default: null,
-  },
-
+  
   },
   
   {
