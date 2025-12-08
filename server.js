@@ -30,6 +30,11 @@ app.use("/api", preferenceRoutes); //pour les pereferences
 app.use("/api", supportRoutes);   // pour le support des mssages
 app.use("/api/beneficiary", beneficiaryRoutes); //pour les beneficier
 
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", message: "Backend Tache21 fonctionne sur Render" });
+});
+
+
 // Connexion MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
