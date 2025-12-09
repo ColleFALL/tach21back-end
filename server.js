@@ -29,17 +29,18 @@ app.use("/api", profileRoutes); //pour le parametre et profile
 app.use("/api", preferenceRoutes); //pour les pereferences
 app.use("/api", supportRoutes);   // pour le support des mssages
 app.use("/api/beneficiary", beneficiaryRoutes); //pour les beneficier
+ app.use("/uploads", express.static("uploads"));
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "Backend Tache21 fonctionne sur Render" });
-});
+// app.get("/api/health", (req, res) => {
+//   res.json({ status: "ok", message: "Backend Tache21 fonctionne sur Render" });
+// });
 
 
 // Connexion MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
-    console.log(" Connecté à MongoDB");
+    console.log(" Connecté à MongoDB"); 
        console.log(" DB utilisée :", mongoose.connection.name);  // 👈 AJOUT
 
     // Lancement du serveur

@@ -151,3 +151,31 @@ export const setPin = async (req, res) => {
     });
   }
 };
+
+//fonction pour le photo de profile
+export const updateAvatar = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Aucun fichier envoyé" });
+    }
+
+    const avatarUrl = `/uploads/${req.file.filename}`;
+
+    const user = await User.findById(userId);
+    user.avatarUrl = avatarUrl;
+    await user.save();
+
+    res.status(200).json({
+      message: "Photo de profil mise à jour",
+      avatarUrl,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Erreur lors de la mise à jour de l'avatar",
+      error: error.message,
+    });
+  }
+};
+

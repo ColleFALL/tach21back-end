@@ -279,3 +279,44 @@ export const resetPassword = async (req, res) => {
     return res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
+
+
+//recuperation du user connecter
+// export const getMe = async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user.id).select("-passwordHash");
+//     if (!user) {
+//       return res.status(404).json({ message: "Utilisateur non trouvé" });
+//     }
+
+//     res.json({ user });
+//   } catch (err) {
+//     console.error("Erreur getMe :", err);
+//     res.status(500).json({
+//       message: "Erreur serveur lors de la récupération du profil",
+//       error: err.message,
+//     });
+//   }
+// };
+
+//udapte user
+// export const updateUser = async (req, res) => {
+//   try {
+//     const updates = req.body;
+
+//     const user = await User.findByIdAndUpdate(
+//       req.user.id,
+//       updates,
+//       { new: true }
+//     ).select("-passwordHash");
+
+//     res.json({ user });
+//   } catch (err) {
+//     console.error("Erreur updateUser :", err);
+//     res.status(500).json({
+//       message: "Erreur serveur lors de la mise à jour du profil",
+//       error: err.message,
+//     });
+//   }
+// };
