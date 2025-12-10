@@ -1,10 +1,36 @@
 import express from "express";
-import { registerUser, loginUser, forgotPassword } from "../controllers/authController.js";
+import {
+  registerUser,
+  loginUser,
+  forgotPassword,
+  resetPassword,
+  // getMe 
+} from "../controllers/authController.js";
+// import { authMiddleware } from "../middlewares/authMiddleware.js";
+
 
 const router = express.Router();
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.post("/forgot-password", forgotPassword); // <-- ajouté
+
+// MOT DE PASSE OUBLIÉ
+router.post("/forgot-password", forgotPassword);
+// RÉINITIALISATION DU MOT DE PASSE
+router.post("/reset-password/:token", resetPassword);
+//Recuperation du User  Connecte
+// router.get("/me", authMiddleware, getMe);
+//udapte user
+
+// router.post("/update", authMiddleware, updateUser);
+
+
+
+
 
 export default router;
+
+
+
+
+    

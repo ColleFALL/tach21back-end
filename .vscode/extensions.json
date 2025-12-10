@@ -1,8 +1,13 @@
 {
     "recommendations": [
         "pkief.material-icon-theme",
+<<<<<<< HEAD
         "okanaslan.catreviews",
         "postman.postman-for-vscode",
         "usernamehw.errorlens"
+=======
+        "postman.postman-for-vscode",
+        "rangav.vscode-thunder-client"
+>>>>>>> 9a4c36842be62433e5e1784c1345c25e2dab2680
     ]
 }
