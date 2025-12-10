@@ -27,11 +27,14 @@ export const authMiddleware = (req, res, next) => {
         .json({ message: "Token invalide (id manquant dans le token)" });
     }
 
+    // ✅ On stocke l'ID utilisateur dans la requête
+    req.userId = userId.toString();
     // ✅ On stocke l'ID utilisateur dans la requête (compatibilité)
     req.userId = userId.toString();
     // On peut aussi peupler req.user si besoin
     req.user = { id: userId.toString(), userId: userId.toString() };
 
+git 
     console.log("✅ Utilisateur authentifié (userId) :", req.userId);
 
     next();
