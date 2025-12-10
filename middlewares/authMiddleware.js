@@ -34,7 +34,7 @@ export const authMiddleware = (req, res, next) => {
     // On peut aussi peupler req.user si besoin
     req.user = { id: userId.toString(), userId: userId.toString() };
 
-git 
+
     console.log("✅ Utilisateur authentifié (userId) :", req.userId);
 
     next();
