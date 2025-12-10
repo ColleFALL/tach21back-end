@@ -25,50 +25,47 @@ const userSchema = new Schema(
       type: String,
       required: [true, "Le mot de passe est obligatoire"],
     },
+
     role: {
       type: String,
       enum: ["user", "admin"],
       default: "user",
     },
+
     isVerified: {
       type: Boolean,
       default: false,
     },
 
-    // Optionnels pour EPIC 5
+    // 🔹 Champs optionnels EPIC 5
     avatarUrl: {
       type: String,
       default: null,
     },
+
     pin: {
-      type: String, // on peut garder string (ex: "1234")
+      type: String, // exemple : "1234"
       default: null,
     },
 
-
-   preferences: {
-     language: {
-     type: String,
-     enum: ["fr", "en"],
-     default: "fr"
+    preferences: {
+      language: {
+        type: String,
+        enum: ["fr", "en"],
+        default: "fr",
+      },
+      notifications: {
+        email: { type: Boolean, default: true },
+        sms: { type: Boolean, default: false },
+        push: { type: Boolean, default: true },
+      },
     },
-    notifications: {
-      email: { type: Boolean, default: true },
-      sms: { type: Boolean, default: false },
-      push: { type: Boolean, default: true }
-    }
-  },
-  resetPasswordToken: {
-   type: String,
-   default: null,
-  },
-  resetPasswordExpires: {
-   type: Date,
-   default: null,
+
+    // 🔹 Champs pour mot de passe oublié
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
   },
 
-  },
-  
   {
     timestamps: true,
   }
