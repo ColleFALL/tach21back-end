@@ -4,9 +4,10 @@ import {
   loginUser,
   forgotPassword,
   resetPassword,
+  changePassword,
   // getMe 
 } from "../controllers/authController.js";
-// import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
 
 
 const router = express.Router();
@@ -21,15 +22,11 @@ router.post("/login", loginUser);
 router.post("/forgot-password", forgotPassword);
 // RÉINITIALISATION DU MOT DE PASSE
 router.post("/reset-password/:token", resetPassword);
-//Recuperation du User  Connecte
-// router.get("/me", authMiddleware, getMe);
-//udapte user
+
+// 🔐 Changer le mot de passe (utilisateur connecté)
+router.patch("/change-password", authMiddleware, changePassword);
 
 // router.post("/update", authMiddleware, updateUser);
-
-
-
-
 
 export default router;
 

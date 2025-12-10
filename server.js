@@ -31,9 +31,6 @@ app.use("/api", supportRoutes);   // pour le support des mssages
 app.use("/api/beneficiary", beneficiaryRoutes); //pour les beneficier
  app.use("/uploads", express.static("uploads"));
 
-// app.get("/api/health", (req, res) => {
-//   res.json({ status: "ok", message: "Backend Tache21 fonctionne sur Render" });
-// });
 
 
 // Connexion MongoDB
