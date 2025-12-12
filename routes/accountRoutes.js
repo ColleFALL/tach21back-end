@@ -21,4 +21,5 @@ router.get("/summary", authMiddleware, getAccountsSummary);
 // Récupérer un compte par ID
 router.get("/:accountId", authMiddleware, getAccountById);
 
+
 export default router;

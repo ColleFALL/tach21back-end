@@ -631,3 +631,4 @@ export const payBill = async (req, res) => {
       .json({ message: "Erreur serveur", error: error.message });
   }
 };
+

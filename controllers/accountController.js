@@ -12,209 +12,124 @@ const generateAccountNumber = () => {
 
 /**
  * 🔹 POST /api/accounts
- * Créer un nouveau compte (EPARGNE ou COURANT) pour l'utilisateur connecté
- * Utilise req.userId (fourni par authMiddleware)
+ * Créer un nouveau compte (EPARGNE ou BUSINESS) pour l'utilisateur connecté
  */
-// controllers/accountController.js (dans createAccount)
-
 export const createAccount = async (req, res) => {
   try {
-    console.log("📥 Body reçu dans createAccount :", req.body);
-    console.log("👤 userId (req.userId) :", req.userId);
-
     const { type, currency, initialBalance } = req.body;
 
-    // 1️⃣ Vérifier que l'utilisateur est authentifié
-    if (!req.userId) {
-      return res.status(401).json({ message: "Utilisateur non authentifié" });
-    }
+    if (!req.userId) return res.status(401).json({ message: "Utilisateur non authentifié" });
 
-    // 2️⃣ Récupérer l'utilisateur en base
-    let userObjectId;
-    try {
-      userObjectId = new mongoose.Types.ObjectId(req.userId);
-    } catch (e) {
-      return res
-        .status(400)
-        .json({ message: "userId invalide dans le token" });
-    }
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ message: "Utilisateur non trouvé" });
 
-    const user = await User.findById(userObjectId);
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
-    }
-
-    // 3️⃣ Types de comptes autorisés (hors compte courant auto)
     const allowedTypes = ["EPARGNE", "BUSINESS"];
-
-    if (!type) {
-      return res
-        .status(400)
-        .json({ message: "Le type de compte est obligatoire (EPARGNE ou BUSINESS)" });
-    }
-
-    const finalType = type.toUpperCase();
-
-    if (!allowedTypes.includes(finalType)) {
+    if (!type || !allowedTypes.includes(type.toUpperCase())) {
       return res.status(400).json({
         message: "Type de compte invalide. Utilisez EPARGNE ou BUSINESS.",
       });
     }
 
-    // (Optionnel) Empêcher plusieurs comptes BUSINESS du même type si tu veux
-    // const existingSameType = await Account.findOne({ user: userObjectId, type: finalType });
-    // if (existingSameType) {
-    //   return res.status(400).json({ message: `Un compte ${finalType} existe déjà` });
-    // }
-
-    // 4️⃣ Générer un numéro de compte unique
-    let accountNumber;
-    let existing;
+    // Générer numéro unique
+    let accountNumber, existing;
     do {
       accountNumber = generateAccountNumber();
       existing = await Account.findOne({ number: accountNumber });
     } while (existing);
 
-    // 5️⃣ Créer le compte
     const account = await Account.create({
-      user: userObjectId,
+      user: req.userId,
       number: accountNumber,
-      type: finalType,
+      type: type.toUpperCase(),
       balance: initialBalance != null ? Number(initialBalance) : 0,
       currency: currency || "XOF",
       status: "ACTIVE",
     });
 
-    return res.status(201).json({
-      message: `Compte ${finalType} créé avec succès`,
-      account,
-    });
+    return res.status(201).json({ message: `Compte ${type.toUpperCase()} créé`, account });
   } catch (error) {
     console.error("Erreur création compte :", error);
-    return res.status(500).json({
-      message: "Erreur serveur lors de la création du compte",
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Erreur serveur lors de la création du compte", error: error.message });
   }
 };
 
 /**
  * 🔹 GET /api/accounts
  * Récupérer tous les comptes de l'utilisateur connecté
+ * Crée automatiquement les comptes manquants COURANT, EPARGNE, BUSINESS
  */
+// Récupérer tous les comptes d'un utilisateur
 export const getAccountsByUser = async (req, res) => {
   try {
-    console.log("🧪 req.userId dans getAccountsByUser :", req.userId);
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Utilisateur non authentifié" });
 
-    if (!req.userId) {
-      return res
-        .status(401)
-        .json({ message: "Utilisateur non authentifié (userId manquant)" });
+    // On récupère tous les comptes existants
+    let accounts = await Account.find({ user: userId });
+
+    // Si un type de compte n'existe pas encore, on peut le créer à la première connexion
+    const requiredTypes = ["COURANT", "EPARGNE", "BUSINESS"];
+    for (let type of requiredTypes) {
+      if (!accounts.some(acc => acc.type === type)) {
+        const newAcc = new Account({
+          user: userId,
+          number: Math.floor(100000 + Math.random() * 900000).toString(),
+          type,
+          balance: 0,
+          currency: "XOF",
+          status: "ACTIVE",
+        });
+        await newAcc.save();
+        accounts.push(newAcc);
+      }
     }
 
-    // 🟢 On laisse Mongoose convertir la string req.userId en ObjectId
-    const accounts = await Account.find({ user: req.userId });
-
-    console.log(
-      "🔎 Comptes trouvés pour user",
-      req.userId,
-      "=>",
-      accounts.length
-    );
-
-    return res.status(200).json({
-      count: accounts.length,
-      accounts,
-    });
-  } catch (error) {
-    console.error("Erreur getAccountsByUser :", error);
-    return res.status(500).json({
-      message: "Erreur serveur lors de la récupération des comptes",
-      error: error.message,
-    });
+    res.json(accounts); // renvoie toujours un tableau complet
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
   }
 };
 
 
 /**
  * 🔹 GET /api/accounts/:accountId
- * Récupérer un compte précis, seulement s'il appartient à l'utilisateur connecté
+ * Récupérer un compte précis
  */
 export const getAccountById = async (req, res) => {
   try {
-    if (!req.userId) {
-      return res.status(401).json({ message: "Utilisateur non authentifié" });
-    }
+    if (!req.userId) return res.status(401).json({ message: "Utilisateur non authentifié" });
 
     const { accountId } = req.params;
+    const account = await Account.findById(accountId).populate("user", "fullName email");
 
-    let userObjectId;
-    try {
-      userObjectId = new mongoose.Types.ObjectId(req.userId);
-    } catch (e) {
-      return res
-        .status(400)
-        .json({ message: "userId invalide dans le token" });
-    }
+    if (!account) return res.status(404).json({ message: "Compte non trouvé" });
+    if (account.user._id.toString() !== req.userId) return res.status(403).json({ message: "Accès interdit" });
 
-    const account = await Account.findById(accountId).populate(
-      "user",
-      "fullName email"
-    );
-
-    if (!account) {
-      return res.status(404).json({ message: "Compte non trouvé" });
-    }
-
-    // Vérifier que le compte appartient bien au user connecté
-    if (account.user._id.toString() !== userObjectId.toString()) {
-      return res.status(403).json({ message: "Accès interdit à ce compte" });
-    }
-
-    return res.status(200).json({
-      message: "Compte trouvé",
-      account,
-    });
+    res.json({ message: "Compte trouvé", account });
   } catch (error) {
     console.error("Erreur getAccountById :", error);
-    return res.status(500).json({
-      message: "Erreur serveur lors de la récupération du compte",
-      error: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// 🔹 GET /api/accounts/summary
+/**
+ * 🔹 GET /api/accounts/summary
+ * Résumé des comptes (nombre + solde total)
+ */
 export const getAccountsSummary = async (req, res) => {
   try {
-    if (!req.userId) {
-      return res
-        .status(401)
-        .json({ message: "Utilisateur non authentifié (userId manquant)" });
-    }
+    if (!req.userId) return res.status(401).json({ message: "Utilisateur non authentifié" });
 
     const accounts = await Account.find({ user: req.userId });
+    const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
 
-    const accountsCount = accounts.length;
-
-    const totalBalance = accounts.reduce(
-      (sum, acc) => sum + (acc.balance || 0),
-      0
-    );
-
-    return res.status(200).json({
-      message: "Résumé des comptes récupéré avec succès",
-      summary: {
-        accountsCount,
-        totalBalance,
-        currency: "XOF",
-      },
+    res.json({
+      message: "Résumé des comptes récupéré",
+      summary: { accountsCount: accounts.length, totalBalance, currency: "XOF" },
     });
   } catch (error) {
     console.error("Erreur getAccountsSummary :", error);
-    return res.status(500).json({
-      message: "Erreur serveur lors de la récupération du résumé des comptes",
-      error: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };

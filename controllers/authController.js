@@ -133,14 +133,10 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1️⃣ Vérifier les champs
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email et mot de passe sont obligatoires" });
+      return res.status(400).json({ message: "Email et mot de passe sont obligatoires" });
     }
 
-    // 2️⃣ Chercher l'utilisateur
     const user = await User.findOne({ email });
     if (!user) {
       return res
@@ -148,7 +144,6 @@ export const loginUser = async (req, res) => {
         .json({ message: "Identifiants invalides" });
     }
 
-    // 3️⃣ Vérifier le mot de passe
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       return res
@@ -162,7 +157,6 @@ export const loginUser = async (req, res) => {
     // (Optionnel) récupérer ses comptes directement
     const accounts = await Account.find({ user: user._id });
 
-    // 5️⃣ Réponse
     return res.status(200).json({
       message: "Connexion réussie",
       user: {

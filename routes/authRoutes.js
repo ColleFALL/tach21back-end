@@ -11,10 +11,7 @@ import {
 
 const router = express.Router();
 
-// INSCRIPTION
 router.post("/register", registerUser);
-
-// CONNEXION
 router.post("/login", loginUser);
 
 // MOT DE PASSE OUBLIÉ
