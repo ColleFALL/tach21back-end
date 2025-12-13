@@ -59,10 +59,10 @@ export const deposit = async (req, res) => {
       throw new Error("Compte introuvable ou inactif");
     }
 
-    // (Optionnel mais recommandé : vérifier que le compte appartient bien au user connecté)
-    // if (account.user.toString() !== userId) {
-    //   throw new Error("Vous n'êtes pas propriétaire de ce compte");
-    // }
+    //(Optionnel mais recommandé : vérifier que le compte appartient bien au user connecté)
+    if (account.user.toString() !== userId) {
+      throw new Error("Vous n'êtes pas propriétaire de ce compte");
+    }
 
     account.balance += amount;
     await account.save({ session });
@@ -185,6 +185,10 @@ export const withdraw = async (req, res) => {
 
 // POST /api/transactions/transfer (interne entre comptes)
 // POST /api/transactions/transfer
+const MIN_TRANSFER_AMOUNT = 100;
+const MAX_TRANSFER_PER_TX = 2000000;
+const MAX_TRANSFER_PER_DAY = 5000000;
+
 export const transfer = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -192,104 +196,175 @@ export const transfer = async (req, res) => {
   try {
     const userId = getUserIdOrThrow(req);
 
-    const { fromId, toId, amount, currency = "XOF", description } = req.body;
+    const { fromId, toId, amount, currency = "XOF", description, idempotencyKey } = req.body;
 
-    if (!fromId || !toId || !amount) {
-      throw new Error("fromId, toId et amount sont obligatoires");
+    // 1) Validation
+    if (!fromId || !toId || amount === undefined) {
+      await session.abortTransaction(); session.endSession();
+      return res.status(400).json({ message: "fromId, toId et amount sont obligatoires" });
     }
 
-    const fromAccount = await Account.findById(fromId).session(session);
-    const toAccount = await Account.findById(toId).session(session);
-
-    if (!fromAccount || !toAccount) {
-      throw new Error("Compte introuvable");
+    if (fromId === toId) {
+      await session.abortTransaction(); session.endSession();
+      return res.status(400).json({ message: "Le compte source et destination doivent être différents" });
     }
 
-    if (fromAccount.balance < amount) {
-      throw new Error("Solde insuffisant");
+    const numericAmount = Number(amount);
+    if (Number.isNaN(numericAmount) || numericAmount <= 0) {
+      await session.abortTransaction(); session.endSession();
+      return res.status(400).json({ message: "Montant invalide" });
     }
 
-    // 📌 Génération référence unique
-    const finalReference = `TRI-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    if (numericAmount < MIN_TRANSFER_AMOUNT) {
+      await session.abortTransaction(); session.endSession();
+      return res.status(400).json({ message: `Montant minimum: ${MIN_TRANSFER_AMOUNT} XOF` });
+    }
 
-    // 📌 🔄 4) Mise à jour des soldes
-    fromAccount.balance -= amount;
-    toAccount.balance += amount;
+    if (numericAmount > MAX_TRANSFER_PER_TX) {
+      await session.abortTransaction(); session.endSession();
+      return res.status(400).json({ message: `Montant maximum: ${MAX_TRANSFER_PER_TX.toLocaleString()} XOF` });
+    }
+
+    // 2) Idempotence (optionnel)
+    if (idempotencyKey) {
+      const existing = await Transaction.findOne({
+        user: userId,
+        idempotencyKey,
+        type: "TRANSFER_INTERNAL_DEBIT",
+        status: "SUCCESS",
+      }).session(session);
+
+      if (existing) {
+        await session.abortTransaction(); session.endSession();
+        return res.json({ message: "Transfert déjà traité", idempotent: true });
+      }
+    }
+
+    // 3) Sécurité : comptes du user connecté seulement
+    const accounts = await Account.find({
+      _id: { $in: [fromId, toId] },
+      user: userId,
+    }).session(session);
+
+    if (accounts.length !== 2) {
+      await session.abortTransaction(); session.endSession();
+      return res.status(404).json({
+        message: "Un ou plusieurs comptes sont introuvables ou n'appartiennent pas à l'utilisateur",
+      });
+    }
+
+    const fromAccount = accounts.find((a) => a._id.toString() === fromId);
+    const toAccount = accounts.find((a) => a._id.toString() === toId);
+
+    // 4) Statuts
+    if (fromAccount.status !== "ACTIVE") {
+      await session.abortTransaction(); session.endSession();
+      return res.status(400).json({ message: "Le compte source n'est pas actif" });
+    }
+
+    if (toAccount.status !== "ACTIVE") {
+      await session.abortTransaction(); session.endSession();
+      return res.status(400).json({ message: "Le compte destination n'est pas actif" });
+    }
+
+    // 5) Solde suffisant
+    if (fromAccount.balance < numericAmount) {
+      await session.abortTransaction(); session.endSession();
+      return res.status(400).json({ message: "Solde insuffisant" });
+    }
+
+    // 6) Limite journalière (sur les débits internes)
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const dailyAgg = await Transaction.aggregate([
+      {
+        $match: {
+          user: new mongoose.Types.ObjectId(userId),
+          type: "TRANSFER_INTERNAL_DEBIT",
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+          fromAccount: fromAccount._id,
+          status: "SUCCESS",
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    const alreadyToday = dailyAgg[0]?.total || 0;
+
+    if (alreadyToday + numericAmount > MAX_TRANSFER_PER_DAY) {
+      await session.abortTransaction(); session.endSession();
+      return res.status(400).json({
+        message: `Limite journalière dépassée. Déjà transféré: ${alreadyToday.toLocaleString()} XOF aujourd'hui`,
+      });
+    }
+
+    // 7) Mise à jour soldes
+    fromAccount.balance -= numericAmount;
+    toAccount.balance += numericAmount;
 
     await fromAccount.save({ session });
     await toAccount.save({ session });
 
-    // 📌 🔥 5) INSERTION DES 2 TRANSACTIONS ICI
-// 📌 Génération références
-const operationRef = `TRI-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-const debitRef = `${operationRef}-D`;
-const creditRef = `${operationRef}-C`;
+    // 8) Références + transactions débit/crédit
+    const operationRef = `TRI-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const debitRef = `${operationRef}-D`;
+    const creditRef = `${operationRef}-C`;
 
-// ...
+    const [txDebit] = await Transaction.create(
+      [
+        {
+          user: userId,
+          type: "TRANSFER_INTERNAL_DEBIT",
+          amount: numericAmount,
+          currency,
+          fromAccount: fromAccount._id,
+          toAccount: toAccount._id,
+          reference: debitRef,
+          description: description || "Transfert interne (débit)",
+          status: "SUCCESS",
+          idempotencyKey,
+        },
+      ],
+      { session }
+    );
 
-// 1) DEBIT compte source
-const [txDebit] = await Transaction.create(
-  [
-    {
-      user: userId,
-      type: "TRANSFER_INTERNAL_DEBIT",
-      amount,
-      currency,
-      fromAccount: fromAccount._id,
-      toAccount: toAccount._id,
-      reference: debitRef, // 👈 ICI
-      description: description || "Transfert interne (débit)",
-      status: "SUCCESS",
-    },
-  ],
-  { session }
-);
+    const [txCredit] = await Transaction.create(
+      [
+        {
+          user: userId,
+          type: "TRANSFER_INTERNAL_CREDIT",
+          amount: numericAmount,
+          currency,
+          fromAccount: fromAccount._id,
+          toAccount: toAccount._id,
+          reference: creditRef,
+          description: description || "Transfert interne (crédit)",
+          status: "SUCCESS",
+          idempotencyKey,
+        },
+      ],
+      { session }
+    );
 
-// 2) CREDIT compte destination
-const [txCredit] = await Transaction.create(
-  [
-    {
-      user: userId,
-      type: "TRANSFER_INTERNAL_CREDIT",
-      amount,
-      currency,
-      fromAccount: fromAccount._id,
-      toAccount: toAccount._id,
-      reference: creditRef, // 👈 ICI (PAS la même que debit)
-      description: description || "Transfert interne (crédit)",
-      status: "SUCCESS",
-    },
-  ],
-  { session }
-);
-
-
-    // 📌 6) Validation
     await session.commitTransaction();
     session.endSession();
 
-    // 📌 7) Réponse API
     return res.json({
       message: "Transfert interne réussi",
-      reference: finalReference,
-      transactions: {
-        debit: txDebit,
-        credit: txCredit,
-      },
-      balances: {
-        from: fromAccount.balance,
-        to: toAccount.balance,
-      },
+      reference: operationRef,
+      transactions: { debit: txDebit, credit: txCredit },
+      balances: { from: fromAccount.balance, to: toAccount.balance },
     });
   } catch (error) {
     await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Erreur transfert :", error);
-    return res
-      .status(500)
-      .json({ message: "Erreur serveur", error: error.message });
+    return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+
 
 
 // POST /api/transactions/transfer/user (transfert entre utilisateurs)
@@ -429,6 +504,10 @@ export const getTransactions = async (req, res) => {
 };
 
 // POST /api/transactions/transfer/beneficiary
+// controllers/transactionController.js (fonction transferToBeneficiary)
+
+// import { getUserIdOrThrow } from "../utils/getUserIdOrThrow.js"; // adapte si ton helper est ailleurs
+
 export const transferToBeneficiary = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -447,15 +526,17 @@ export const transferToBeneficiary = async (req, res) => {
     } = req.body;
 
     if (!fromAccountId || !beneficiaryId || !amount) {
-      throw new Error(
-        "fromAccountId, beneficiaryId et amount sont obligatoires"
-      );
+      throw new Error("fromAccountId, beneficiaryId et amount sont obligatoires");
     }
 
+    const amt = Number(amount);
+    if (Number.isNaN(amt) || amt <= 0) {
+      throw new Error("Montant invalide");
+    }
+
+    // ✅ idempotency
     if (idempotencyKey) {
-      const existing = await Transaction.findOne({ idempotencyKey }).session(
-        session
-      );
+      const existing = await Transaction.findOne({ idempotencyKey }).session(session);
       if (existing) {
         await session.abortTransaction();
         session.endSession();
@@ -463,15 +544,17 @@ export const transferToBeneficiary = async (req, res) => {
       }
     }
 
-    const account = await Account.findById(fromAccountId).session(session);
-    if (!account || account.status?.toUpperCase() !== "ACTIVE") {
+    // ✅ compte source
+    const fromAccount = await Account.findById(fromAccountId).session(session);
+    if (!fromAccount || String(fromAccount.status || "").toUpperCase() !== "ACTIVE") {
       throw new Error("Compte source introuvable ou inactif");
     }
 
-    if (account.balance < amount) {
+    if (fromAccount.balance < amt) {
       throw new Error("Solde insuffisant");
     }
 
+    // ✅ bénéficiaire (appartient au user)
     const beneficiary = await Beneficiary.findOne({
       _id: beneficiaryId,
       user: userId,
@@ -481,18 +564,40 @@ export const transferToBeneficiary = async (req, res) => {
       throw new Error("Bénéficiaire introuvable");
     }
 
-    account.balance -= amount;
-    await account.save({ session });
+    // ✅ Débit du compte source
+    fromAccount.balance -= amt;
+    await fromAccount.save({ session });
+
+    // ✅ Si bénéficiaire interne : créditer son compte courant
+    let toAccount = null;
+
+    if (beneficiary.type === "INTERNAL" && beneficiary.linkedUser) {
+      toAccount = await Account.findOne({
+        user: beneficiary.linkedUser,
+        type: "COURANT",
+        status: "ACTIVE",
+      }).session(session);
+
+      if (!toAccount) {
+        throw new Error("Compte courant du bénéficiaire introuvable ou inactif");
+      }
+
+      toAccount.balance += amt;
+      await toAccount.save({ session });
+    }
+
+    // ✅ Transaction
+    const txType = toAccount ? "TRANSFER_INTERNAL" : "TRANSFER_EXTERNAL";
 
     const [tx] = await Transaction.create(
       [
         {
           user: userId,
-          type: "TRANSFER_EXTERNAL",
-          amount,
+          type: txType,
+          amount: amt,
           currency,
-          fromAccount: account._id,
-          toAccount: null,
+          fromAccount: fromAccount._id,
+          toAccount: toAccount ? toAccount._id : null,
           beneficiary: beneficiary._id,
           idempotencyKey,
           reference,
@@ -507,19 +612,21 @@ export const transferToBeneficiary = async (req, res) => {
     session.endSession();
 
     return res.json({
-      message: "Transfert externe effectué avec succès",
+      message: toAccount
+        ? "Transfert interne vers bénéficiaire effectué avec succès"
+        : "Transfert externe effectué avec succès",
       transaction: tx,
-      balanceAfter: account.balance,
+      balanceAfter: fromAccount.balance,
+      creditedToAccountId: toAccount ? toAccount._id : null,
     });
   } catch (error) {
     await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Erreur transferToBeneficiary :", error);
-    return res
-      .status(500)
-      .json({ message: "Erreur serveur", error: error.message });
+    return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+
 
 //// GET /api/transactions/services
 export const getPaymentServices = async (req, res) => {

@@ -21,6 +21,9 @@ const userSchema = new Schema(
       type: String,
       trim: true,
     },
+        // ✅ AJOUT : téléphone unique (sert d'identifiant pour virements internes)
+    phone: { type: String, required: true, trim: true, unique: true },
+
     passwordHash: {
       type: String,
       required: [true, "Le mot de passe est obligatoire"],

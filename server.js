@@ -11,6 +11,7 @@ import profileRoutes from "./routes/profileRoutes.js";
 import preferenceRoutes from "./routes/preferenceRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import beneficiaryRoutes from "./routes/beneficiaryRoutes.js";
+import devRoutes from "./routes/devRoutes.js";
 
 dotenv.config();
 console.log(" MONGO_URI lu par le serveur :", process.env.MONGO_URI);
@@ -20,6 +21,8 @@ const app = express();
 // Middlewares
 app.use(cors());
 app.use(express.json());
+console.log("✅ beneficiary routes mounted on /api/beneficiary");
+
 
 // routes des api
 app.use("/api/auth", authRoutes);           // pour register/login (collègue)
@@ -28,8 +31,9 @@ app.use("/api/transactions", transactionRoutes); // pour les transactions
 app.use("/api", profileRoutes); //pour le parametre et profile
 app.use("/api", preferenceRoutes); //pour les pereferences
 app.use("/api", supportRoutes);   // pour le support des mssages
-app.use("/api/beneficiary", beneficiaryRoutes); //pour les beneficier
- app.use("/uploads", express.static("uploads"));
+app.use("/api/beneficiaries", beneficiaryRoutes); //pour les beneficier
+app.use("/uploads", express.static("uploads"));
+app.use("/api/dev", devRoutes);
 
 
 
@@ -49,3 +53,9 @@ mongoose
   .catch((err) => {
     console.error(" Erreur connexion MongoDB :", err.message);
   });
+
+
+
+
+// ...
+

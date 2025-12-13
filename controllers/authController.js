@@ -79,7 +79,7 @@ export const registerUser = async (req, res) => {
     const user = await User.create({
       fullName,
       email,
-      phone,
+      phone: phone.trim(),
       passwordHash: hashedPassword,
     });
 

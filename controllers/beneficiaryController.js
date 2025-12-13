@@ -1,10 +1,11 @@
 // controllers/beneficiaryController.js
 import Beneficiary from "../models/Beneficiary.js";
+import User from "../models/User.js";
 
 // POST /api/beneficiaries
 export const createBeneficiary = async (req, res) => {
   try {
-    const { name, bankName, bankCode, accountNumber, linkedUser, type } = req.body;
+    const { name, bankName, bankCode, accountNumber } = req.body;
 
     if (!name || !accountNumber) {
       return res
@@ -12,14 +13,19 @@ export const createBeneficiary = async (req, res) => {
         .json({ message: "Le nom et le numéro de compte sont obligatoires" });
     }
 
+    const normalized = String(accountNumber).trim();
+
+    // ✅ Détection : est-ce un user interne (même banque) ?
+    const internalUser = await User.findOne({ phone: normalized });
+
     const beneficiary = await Beneficiary.create({
       user: req.user.id,
       name,
       bankName,
       bankCode,
-      accountNumber,
-      linkedUser: linkedUser || null,
-      type: type || "EXTERNAL",
+      accountNumber: normalized,
+      linkedUser: internalUser ? internalUser._id : null,
+      type: internalUser ? "INTERNAL" : "EXTERNAL",
     });
 
     return res.status(201).json({ message: "Bénéficiaire créé", beneficiary });
@@ -29,7 +35,7 @@ export const createBeneficiary = async (req, res) => {
   }
 };
 
-// GET /api/beneficiary
+// GET /api/beneficiaries
 export const getBeneficiary = async (req, res) => {
   try {
     const beneficiary = await Beneficiary.find({ user: req.user.id }).sort({
