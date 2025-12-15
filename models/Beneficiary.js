@@ -10,6 +10,7 @@ const beneficiarySchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
     // nom du bénéficiaire (contact)
@@ -23,18 +24,21 @@ const beneficiarySchema = new Schema(
     bankName: {
       type: String,
       trim: true,
+      default: null,
     },
 
     bankCode: {
       type: String,
       trim: true,
+      default: null,
     },
 
-    // numéro de compte / RIB
+    // numéro de compte / identifiant (chez toi = phone pour interne)
     accountNumber: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
 
     // éventuel user interne à la plateforme
@@ -42,6 +46,7 @@ const beneficiarySchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "User",
       default: null,
+      index: true,
     },
 
     // type de bénéficiaire : interne à la banque ou externe
@@ -49,11 +54,14 @@ const beneficiarySchema = new Schema(
       type: String,
       enum: ["INTERNAL", "EXTERNAL"],
       default: "EXTERNAL",
+      index: true,
     },
   },
   { timestamps: true }
 );
 
-const Beneficiary = mongoose.model("Beneficiary", beneficiarySchema);
+// ✅ Empêche les doublons (même user + même accountNumber)
+beneficiarySchema.index({ user: 1, accountNumber: 1 }, { unique: true });
 
+const Beneficiary = mongoose.model("Beneficiary", beneficiarySchema);
 export default Beneficiary;
