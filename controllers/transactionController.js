@@ -535,6 +535,59 @@ export const getPaymentServices = async (req, res) => {
 
 
 // POST /api/transactions/bill-payment
+// export const payBill = async (req, res) => {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     const userId = getUserIdOrThrow(req);
+
+//     const {
+//       accountId,
+//       amount,
+//       serviceCode,
+//       serviceName,
+//       billNumber,
+//       currency = "XOF",
+//       idempotencyKey,
+//       reference,
+//       description,
+//     } = req.body;
+
+//     // if (!accountId || !amount || !serviceCode || !billNumber) {
+//     //   throw new Error(
+//     //     "accountId, amount, serviceCode et billNumber sont obligatoires"
+//     //   );
+//     // }
+
+//     // const { amount, serviceCode, billNumber, currency, description } = req.body;
+
+// if (!amount || !serviceCode || !billNumber) {
+//   throw new Error("amount, serviceCode et billNumber sont obligatoires");
+// }
+
+// // 🔥 ON RÉCUPÈRE LE COMPTE COURANT DU USER
+//  account = await Account.findOne({
+//   user: userId,
+//   type: "COURANT",
+//   status: "ACTIVE",
+// }).session(session);
+
+// if (!account) {
+//   throw new Error("Aucun compte courant actif trouvé");
+// }
+
+    
+//     //🔐 Vérification : seulement les services autorisés
+
+//     const ALLOWED_SERVICES = ["EAU", "ELECTRICITE", "MOBILE", "INTERNET"];
+
+//     if (!ALLOWED_SERVICES.includes(serviceCode)) {
+//      return res.status(400).json({
+//       message: "serviceCode invalide. Services autorisés : EAU, ELECTRICITE, MOBILE, INTERNET",
+//     });
+//     }
+
 export const payBill = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -543,7 +596,6 @@ export const payBill = async (req, res) => {
     const userId = getUserIdOrThrow(req);
 
     const {
-      accountId,
       amount,
       serviceCode,
       serviceName,
@@ -554,36 +606,29 @@ export const payBill = async (req, res) => {
       description,
     } = req.body;
 
-    if (!accountId || !amount || !serviceCode || !billNumber) {
+    if (!amount || !serviceCode || !billNumber) {
       throw new Error(
-        "accountId, amount, serviceCode et billNumber sont obligatoires"
+        "amount, serviceCode et billNumber sont obligatoires"
       );
     }
-    //🔐 Vérification : seulement les services autorisés
 
     const ALLOWED_SERVICES = ["EAU", "ELECTRICITE", "MOBILE", "INTERNET"];
-
     if (!ALLOWED_SERVICES.includes(serviceCode)) {
-     return res.status(400).json({
-      message: "serviceCode invalide. Services autorisés : EAU, ELECTRICITE, MOBILE, INTERNET",
-    });
-    }
-    
-
-    if (idempotencyKey) {
-      const existing = await Transaction.findOne({ idempotencyKey }).session(
-        session
-      );
-      if (existing) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.json({ transaction: existing, idempotent: true });
-      }
+      return res.status(400).json({
+        message:
+          "serviceCode invalide. Services autorisés : EAU, ELECTRICITE, MOBILE, INTERNET",
+      });
     }
 
-    const account = await Account.findById(accountId).session(session);
-    if (!account || account.status?.toUpperCase() !== "ACTIVE") {
-      throw new Error("Compte introuvable ou inactif");
+    // 🔥 COMPTE COURANT DU USER (PLUS D'accountId)
+    const account = await Account.findOne({
+      user: userId,
+      type: "COURANT",
+      status: "ACTIVE",
+    }).session(session);
+
+    if (!account) {
+      throw new Error("Aucun compte courant actif trouvé");
     }
 
     if (account.balance < amount) {
@@ -626,9 +671,73 @@ export const payBill = async (req, res) => {
     await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Erreur payBill :", error);
-    return res
-      .status(500)
-      .json({ message: "Erreur serveur", error: error.message });
+    return res.status(500).json({
+      message: error.message,
+    });
   }
 };
+
+    
+
+//     if (idempotencyKey) {
+//       const existing = await Transaction.findOne({ idempotencyKey }).session(
+//         session
+//       );
+//       if (existing) {
+//         await session.abortTransaction();
+//         session.endSession();
+//         return res.json({ transaction: existing, idempotent: true });
+//       }
+//     }
+
+//     const account = await Account.findById(accountId).session(session);
+//     if (!account || account.status?.toUpperCase() !== "ACTIVE") {
+//       throw new Error("Compte introuvable ou inactif");
+//     }
+
+//     if (account.balance < amount) {
+//       throw new Error("Solde insuffisant");
+//     }
+
+//     account.balance -= amount;
+//     await account.save({ session });
+
+//     const [tx] = await Transaction.create(
+//       [
+//         {
+//           user: userId,
+//           type: "BILL_PAYMENT",
+//           amount,
+//           currency,
+//           fromAccount: account._id,
+//           toAccount: null,
+//           serviceCode,
+//           serviceName,
+//           billNumber,
+//           idempotencyKey,
+//           reference,
+//           description,
+//           status: "SUCCESS",
+//         },
+//       ],
+//       { session }
+//     );
+
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     return res.json({
+//       message: "Paiement de facture effectué avec succès",
+//       transaction: tx,
+//       balanceAfter: account.balance,
+//     });
+//   } catch (error) {
+//     await session.abortTransaction().catch(() => {});
+//     session.endSession();
+//     console.error("Erreur payBill :", error);
+//     return res
+//       .status(500)
+//       .json({ message: "Erreur serveur", error: error.message });
+//   }
+// };
 
