@@ -20,7 +20,7 @@ const accountSchema = new mongoose.Schema(
     },
     balance: {
       type: Number,
-      default: 0, // solde
+      default: 10000, // solde
     },
     currency: {
       type: String,

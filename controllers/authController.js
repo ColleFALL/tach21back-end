@@ -133,14 +133,10 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1️⃣ Vérifier les champs
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email et mot de passe sont obligatoires" });
+      return res.status(400).json({ message: "Email et mot de passe sont obligatoires" });
     }
 
-    // 2️⃣ Chercher l'utilisateur
     const user = await User.findOne({ email });
     if (!user) {
       return res
@@ -148,7 +144,6 @@ export const loginUser = async (req, res) => {
         .json({ message: "Identifiants invalides" });
     }
 
-    // 3️⃣ Vérifier le mot de passe
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       return res
@@ -162,7 +157,6 @@ export const loginUser = async (req, res) => {
     // (Optionnel) récupérer ses comptes directement
     const accounts = await Account.find({ user: user._id });
 
-    // 5️⃣ Réponse
     return res.status(200).json({
       message: "Connexion réussie",
       user: {
@@ -282,76 +276,44 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-/**
- * Changer le mot de passe de l'utilisateur connecté
- * Route: PATCH /api/auth/change-password
- * Accès: Protégé (JWT)
- */
-export const changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    // 1️⃣ Vérification des champs
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        message: "L'ancien mot de passe et le nouveau mot de passe sont requis",
-      });
-    }
-
-    // Optionnel : règles de complexité
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        message: "Le nouveau mot de passe doit contenir au moins 8 caractères",
-      });
-    }
-
-    // 2 Récupérer l'utilisateur connecté grâce au middleware d'auth
-    //  Adapte ici si ton middleware met req.user ou req.user.id
-    const userId = req.userId || (req.user && req.user.id);
-
-    if (!userId) {
-      return res.status(401).json({
-        message: "Utilisateur non authentifié",
-      });
-    }
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({
-        message: "Utilisateur introuvable",
-      });
-    }
-
-    // 3 Vérifier que l'ancien mot de passe est correct
-    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
-
-    if (!isMatch) {
-      return res.status(400).json({
-        message: "Ancien mot de passe incorrect",
-      });
-    }
-
-    // 4 Hasher le nouveau mot de passe
-    const saltRounds = 10;
-    const newHash = await bcrypt.hash(newPassword, saltRounds);
-
-    user.passwordHash = newHash;
-    // Optionnel : user.passwordChangedAt = new Date();
-    await user.save();
-
-    // 5 Réponse
-    return res.status(200).json({
-      message: "Mot de passe mis à jour avec succès",
-    });
-  } catch (error) {
-    console.error("Erreur lors du changement de mot de passe :", error);
-    return res.status(500).json({
-      message: "Erreur serveur lors du changement de mot de passe",
-      error: error.message,
-    });
-  }
-};
 
 
 
+//recuperation du user connecter
+// export const getMe = async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user.id).select("-passwordHash");
+//     if (!user) {
+//       return res.status(404).json({ message: "Utilisateur non trouvé" });
+//     }
+
+//     res.json({ user });
+//   } catch (err) {
+//     console.error("Erreur getMe :", err);
+//     res.status(500).json({
+//       message: "Erreur serveur lors de la récupération du profil",
+//       error: err.message,
+//     });
+//   }
+// };
+
+//udapte user
+// export const updateUser = async (req, res) => {
+//   try {
+//     const updates = req.body;
+
+//     const user = await User.findByIdAndUpdate(
+//       req.user.id,
+//       updates,
+//       { new: true }
+//     ).select("-passwordHash");
+
+//     res.json({ user });
+//   } catch (err) {
+//     console.error("Erreur updateUser :", err);
+//     res.status(500).json({
+//       message: "Erreur serveur lors de la mise à jour du profil",
+//       error: err.message,
+//     });
+//   }
+// };
