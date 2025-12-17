@@ -79,7 +79,7 @@ export const registerUser = async (req, res) => {
     const user = await User.create({
       fullName,
       email,
-      phone,
+      phone: phone.trim(),
       passwordHash: hashedPassword,
     });
 
@@ -275,6 +275,7 @@ export const resetPassword = async (req, res) => {
     return res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
 
 
 
