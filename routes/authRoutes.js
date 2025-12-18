@@ -4,7 +4,7 @@ import {
   loginUser,
   forgotPassword,
   resetPassword,
-  // getMe 
+  changePassword, // ✅ À AJOUTER
 } from "../controllers/authController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 
@@ -20,7 +20,7 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 
 // 🔐 Changer le mot de passe (utilisateur connecté)
-router.patch("/change-password", authMiddleware);
+router.patch("/change-password", authMiddleware,changePassword);
 
 // router.post("/update", authMiddleware, updateUser);
 

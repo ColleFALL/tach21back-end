@@ -6,10 +6,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 
-//
 // 🔹 Utilitaires
-//
-
 // Générer un numéro de compte unique
 const generateAccountNumber = () => {
   const prefix = "SN-";
@@ -277,43 +274,38 @@ export const resetPassword = async (req, res) => {
 };
 
 
+// ajouter PATCH /api/auth/change-password
+export const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        message: "Tous les champs sont obligatoires",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur introuvable" });
+    }
+
+    //  Comparer le mot de passe actuel avec passwordHash
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Mot de passe actuel incorrect" });
+    }
+
+    //  Hasher et sauvegarder le nouveau mot de passe
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.json({ message: "Mot de passe modifié avec succès" });
+  } catch (error) {
+    console.error("Erreur changePassword:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
 
 
-//recuperation du user connecter
-// export const getMe = async (req, res) => {
-//   try {
-//     const user = await User.findById(req.user.id).select("-passwordHash");
-//     if (!user) {
-//       return res.status(404).json({ message: "Utilisateur non trouvé" });
-//     }
-
-//     res.json({ user });
-//   } catch (err) {
-//     console.error("Erreur getMe :", err);
-//     res.status(500).json({
-//       message: "Erreur serveur lors de la récupération du profil",
-//       error: err.message,
-//     });
-//   }
-// };
-
-//udapte user
-// export const updateUser = async (req, res) => {
-//   try {
-//     const updates = req.body;
-
-//     const user = await User.findByIdAndUpdate(
-//       req.user.id,
-//       updates,
-//       { new: true }
-//     ).select("-passwordHash");
-
-//     res.json({ user });
-//   } catch (err) {
-//     console.error("Erreur updateUser :", err);
-//     res.status(500).json({
-//       message: "Erreur serveur lors de la mise à jour du profil",
-//       error: err.message,
-//     });
-//   }
-// };

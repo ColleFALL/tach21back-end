@@ -72,46 +72,40 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-// 🔹 PUT /api/profile/change-password
-export const changePassword = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { oldPassword, newPassword } = req.body;
+// // 🔹 PUT /api/profile/change-password
+// export const changePassword = async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+//     const { currentPassword, newPassword } = req.body;
 
-    if (!oldPassword || !newPassword) {
-      return res.status(400).json({
-        message: "oldPassword et newPassword sont obligatoires",
-      });
-    }
+//     if (!currentPassword || !newPassword) {
+//       return res.status(400).json({
+//         message: "Tous les champs sont obligatoires",
+//       });
+//     }
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
-    }
+//     const user = await User.findById(userId);
 
-    const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
-    if (!isMatch) {
-      return res
-        .status(401)
-        .json({ message: "Ancien mot de passe incorrect" });
-    }
+//     const isMatch = await bcrypt.compare(
+//       currentPassword,
+//       user.password
+//     );
 
-    const hashed = await bcrypt.hash(newPassword, 10);
-    user.passwordHash = hashed;
+//     if (!isMatch) {
+//       return res.status(401).json({
+//         message: "Mot de passe actuel incorrect",
+//       });
+//     }
 
-    await user.save();
+//     user.password = await bcrypt.hash(newPassword, 10);
+//     await user.save();
 
-    return res.status(200).json({
-      message: "Mot de passe mis à jour avec succès",
-    });
-  } catch (error) {
-    console.error("Erreur changePassword :", error);
-    return res.status(500).json({
-      message: "Erreur serveur lors du changement de mot de passe",
-      error: error.message,
-    });
-  }
-};
+//     res.json({ message: "Mot de passe modifié avec succès" });
+//   } catch (error) {
+//     res.status(500).json({ message: "Erreur serveur" });
+//   }
+// };
+
 
 // 🔹 (Optionnel) POST /api/profile/set-pin
 export const setPin = async (req, res) => {
