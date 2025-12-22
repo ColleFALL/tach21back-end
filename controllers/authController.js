@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import createNotification from "../utils/createNotification.js"; //ajouter
 
 // 🔹 Utilitaires
 // Générer un numéro de compte unique
@@ -150,9 +151,16 @@ export const loginUser = async (req, res) => {
 
     // 4️⃣ Générer un token
     const token = generateToken(user._id);
-
     // (Optionnel) récupérer ses comptes directement
     const accounts = await Account.find({ user: user._id });
+
+    // ajouter  NOTIFICATION ()
+    await createNotification({
+      userId: user._id, // ✅ user existe ici
+      category: "SECURITY",
+      title: "Connexion réussie",
+      message: "Une connexion à votre compte a été effectuée avec succès.",
+    });
 
     return res.status(200).json({
       message: "Connexion réussie",
@@ -178,7 +186,18 @@ export const loginUser = async (req, res) => {
   }
 };
 
-//
+// ajouter a notification
+
+
+// // après login réussi
+// await createNotification({
+//   userId: req.user?._id || user._id,
+//   category: "SYSTEM",
+//   title: "Test notification",
+//   message: "Ceci est une notification de test.",
+// });
+
+
 // 🔹 MOT DE PASSE OUBLIÉ
 //
 export const forgotPassword = async (req, res) => {

@@ -5,6 +5,14 @@ const { Schema, model } = mongoose;
 
 const userSchema = new Schema(
   {
+    //ajouter
+    email: String,
+    password: String,
+
+    emailNotifications: {
+    type: Boolean,
+    default: true, // activé par défaut
+   },
     fullName: {
       type: String,
       required: [true, "Le nom complet est obligatoire"],
@@ -22,7 +30,12 @@ const userSchema = new Schema(
       trim: true,
     },
         // ✅ AJOUT : téléphone unique (sert d'identifiant pour virements internes)
-    phone: { type: String, required: true, trim: true, unique: true },
+    phone: { 
+      type: String, 
+      required: true,
+      trim: true, 
+      unique: true 
+    },
 
     passwordHash: {
       type: String,
