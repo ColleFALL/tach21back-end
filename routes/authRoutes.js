@@ -1,5 +1,3 @@
-
-
 import express from "express";
 import {
   registerUser,
@@ -26,6 +24,3 @@ router.post("/ChangementMdp/:token", ChangementMdp);
 router.patch("/change-password", authMiddleware);
 
 export default router;
-
-
-    
