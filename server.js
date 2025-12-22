@@ -12,6 +12,9 @@ import preferenceRoutes from "./routes/preferenceRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import beneficiaryRoutes from "./routes/beneficiaryRoutes.js";
 import devRoutes from "./routes/devRoutes.js";
+import  ChangementMdp  from "./routes/authRoutes.js";
+
+
 
 dotenv.config();
 console.log(" MONGO_URI lu par le serveur :", process.env.MONGO_URI);
@@ -41,6 +44,8 @@ app.use("/api", supportRoutes);   // pour le support des mssages
 app.use("/api/beneficiaries", beneficiaryRoutes); //pour les beneficier
 app.use("/uploads", express.static("uploads"));
 app.use("/api/dev", devRoutes);
+app.post("/ChangementMdp/:token", ChangementMdp);
+
 
 
 

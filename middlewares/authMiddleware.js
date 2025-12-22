@@ -32,12 +32,7 @@ export const authMiddleware = (req, res, next) => {
     // On peut aussi peupler req.user si besoin
     req.user = { id: userId.toString(), userId: userId.toString() };
 
-<<<<<<< HEAD
-
-    console.log(" Utilisateur authentifié (userId) :", req.userId);
-=======
     console.log("✅ Utilisateur authentifié (userId) :", req.userId);
->>>>>>> 87cdfe05b48f074aefc7e0f0f02f11249a0bade6
 
     next();
   } catch (error) {
