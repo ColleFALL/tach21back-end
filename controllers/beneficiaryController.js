@@ -3,7 +3,6 @@ import Beneficiary from "../models/Beneficiary.js";
 import User from "../models/User.js";
 
 // POST /api/beneficiaries
-// POST /api/beneficiaries
 export const createBeneficiary = async (req, res) => {
   try {
     const userId = req.user?.id || req.userId;
@@ -47,8 +46,6 @@ export const createBeneficiary = async (req, res) => {
     return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
-
-
 // GET /api/beneficiaries
 export const getBeneficiary = async (req, res) => {
   try {

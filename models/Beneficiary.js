@@ -62,6 +62,5 @@ const beneficiarySchema = new Schema(
 
 // ✅ Empêche les doublons (même user + même accountNumber)
 beneficiarySchema.index({ user: 1, accountNumber: 1 }, { unique: true });
-
 const Beneficiary = mongoose.model("Beneficiary", beneficiarySchema);
 export default Beneficiary;

@@ -30,7 +30,7 @@ const accountSchema = new mongoose.Schema(
      type: String,
      enum: ["ACTIVE", "BLOCKED", "CLOSED"],
      default: "ACTIVE",
-   },
+   }, 
 
   },
   { timestamps: true }
