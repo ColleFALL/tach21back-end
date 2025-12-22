@@ -13,6 +13,7 @@ import supportRoutes from "./routes/supportRoutes.js";
 import beneficiaryRoutes from "./routes/beneficiaryRoutes.js";
 import devRoutes from "./routes/devRoutes.js";
 import  ChangementMdp  from "./routes/authRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js"; 
 
 
 

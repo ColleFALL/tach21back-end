@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import Account from "../models/Account.js";
 import Transaction from "../models/Transaction.js";
 import Beneficiary from "../models/Beneficiary.js";
+import User from "../models/User.js"; // 🆕 NEW
+import createNotification from "../utils/createNotification.js";
 
 // Petit helper pour récupérer userId proprement
 const getUserIdOrThrow = (req) => {
@@ -10,6 +12,47 @@ const getUserIdOrThrow = (req) => {
     throw new Error("Utilisateur non authentifié (req.user manquant)");
   }
   return req.user.id;
+};
+
+// 🆕 NEW — détecter erreurs “métier” (à renvoyer en 400)
+const isBusinessError = (msg = "") => {
+  const m = String(msg).toLowerCase();
+  return (
+    m.includes("solde insuffisant") ||
+    m.includes("montant invalide") ||
+    m.includes("introuvable") ||
+    m.includes("inactif") ||
+    m.includes("refusé") ||
+    m.includes("obligatoires") ||
+    m.includes("bénéficiaire") ||
+    m.includes("destination") ||
+    m.includes("source") ||
+    m.includes("servicecode invalide")
+  );
+};
+
+// 🆕 NEW — récupérer un nom d’utilisateur fiable (sans dépendre du middleware)
+const getUserDisplayName = async (userId) => {
+  const u = await User.findById(userId).select("fullName email").lean();
+  return u?.fullName || u?.email || "un utilisateur";
+};
+
+// 🆕 NEW — helper: notifier + renvoyer une erreur métier propre
+const notifyAndReturnBusinessError = async (req, res, { title, message }) => {
+  try {
+    if (req?.user?.id) {
+      await createNotification({
+        userId: req.user.id,
+        category: "TRANSACTION",
+        title,
+        message,
+        redirectUrl: "/transactions",
+      });
+    }
+  } catch (e) {
+    console.error("Erreur notification (business):", e?.message);
+  }
+  return res.status(400).json({ message });
 };
 
 // ----------------------------
@@ -35,7 +78,6 @@ export const deposit = async (req, res) => {
       throw new Error("accountId et amount sont obligatoires");
     }
 
-    // ✅ FIX — Convertir amount en number
     const amountNum = Number(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       throw new Error("Montant invalide");
@@ -59,11 +101,10 @@ export const deposit = async (req, res) => {
       finalReference = `DEP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     }
 
-    if (!account || account.status?.toUpperCase() !== "ACTIVE") {
+    if (!account || String(account.status || "").toUpperCase() !== "ACTIVE") {
       throw new Error("Compte introuvable ou inactif");
     }
 
-    // ✅ FIX — Addition correcte
     account.balance = Number(account.balance) + amountNum;
     await account.save({ session });
 
@@ -72,7 +113,7 @@ export const deposit = async (req, res) => {
         {
           user: userId,
           type: "DEPOSIT",
-          amount: amountNum,       // FIX
+          amount: amountNum,
           currency,
           fromAccount: null,
           toAccount: account._id,
@@ -88,6 +129,15 @@ export const deposit = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // ✅ Notification succès
+    await createNotification({
+      userId,
+      category: "TRANSACTION",
+      title: "Dépôt effectué",
+      message: `Un dépôt de ${amountNum} ${currency} a été crédité sur votre compte.`,
+      redirectUrl: "/transactions",
+    });
+
     return res.json({
       message: "Dépôt effectué avec succès",
       transaction: tx,
@@ -97,6 +147,14 @@ export const deposit = async (req, res) => {
     await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Erreur dépôt :", error);
+
+    if (isBusinessError(error.message)) {
+      return notifyAndReturnBusinessError(req, res, {
+        title: "Dépôt refusé",
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
@@ -124,7 +182,6 @@ export const withdraw = async (req, res) => {
       throw new Error("accountId et amount sont obligatoires");
     }
 
-    // ✅ FIX — Convertir amount
     const amountNum = Number(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       throw new Error("Montant invalide");
@@ -140,16 +197,14 @@ export const withdraw = async (req, res) => {
     }
 
     const account = await Account.findById(accountId).session(session);
-    if (!account || account.status?.toUpperCase() !== "ACTIVE") {
+    if (!account || String(account.status || "").toUpperCase() !== "ACTIVE") {
       throw new Error("Compte introuvable ou inactif");
     }
 
-    // ✅ FIX — Comparaison correcte
     if (Number(account.balance) < amountNum) {
       throw new Error("Solde insuffisant");
     }
 
-    // FIX — Déduction correcte
     account.balance = Number(account.balance) - amountNum;
     await account.save({ session });
 
@@ -174,6 +229,15 @@ export const withdraw = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // ✅ Notification succès
+    await createNotification({
+      userId,
+      category: "TRANSACTION",
+      title: "Retrait effectué",
+      message: `Un retrait de ${amountNum} ${currency} a été effectué.`,
+      redirectUrl: "/transactions",
+    });
+
     return res.json({
       message: "Retrait effectué avec succès",
       transaction: tx,
@@ -183,12 +247,20 @@ export const withdraw = async (req, res) => {
     await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Erreur retrait :", error);
+
+    if (isBusinessError(error.message)) {
+      return notifyAndReturnBusinessError(req, res, {
+        title: "Retrait refusé",
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
 
 // ======================================================
-// 🔥🔥🔥 TRANSFERT INTERNE (SECTION CORRIGÉE) 🔥🔥🔥
+//  TRANSFERT INTERNE (entre comptes du même user)
 // ======================================================
 export const transfer = async (req, res) => {
   const session = await mongoose.startSession();
@@ -198,13 +270,12 @@ export const transfer = async (req, res) => {
     const userId = getUserIdOrThrow(req);
     const { fromId, toId, amount, currency = "XOF", description } = req.body;
 
-    // 1) Validation
     if (!fromId || !toId || amount === undefined) {
-      await session.abortTransaction(); session.endSession();
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: "fromId, toId et amount sont obligatoires" });
     }
 
-    // ✅ FIX — Conversion
     const amountNum = Number(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       throw new Error("Montant invalide");
@@ -213,45 +284,39 @@ export const transfer = async (req, res) => {
     const fromAccount = await Account.findById(fromId).session(session);
     const toAccount = await Account.findById(toId).session(session);
 
-    if (accounts.length !== 2) {
-      await session.abortTransaction(); session.endSession();
-      return res.status(404).json({
-        message: "Un ou plusieurs comptes sont introuvables ou n'appartiennent pas à l'utilisateur",
-      });
+    // ✅ FIX: accounts n'existait pas
+    if (!fromAccount || !toAccount) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: "Compte source ou destination introuvable" });
     }
 
-    // const fromAccount = accounts.find((a) => a._id.toString() === fromId);
-    // const toAccount = accounts.find((a) => a._id.toString() === toId);
-
-    // 4) Statuts
-    if (fromAccount.status !== "ACTIVE") {
-      await session.abortTransaction(); session.endSession();
+    if (String(fromAccount.status || "").toUpperCase() !== "ACTIVE") {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: "Le compte source n'est pas actif" });
     }
 
-    if (toAccount.status !== "ACTIVE") {
-      await session.abortTransaction(); session.endSession();
+    if (String(toAccount.status || "").toUpperCase() !== "ACTIVE") {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: "Le compte destination n'est pas actif" });
     }
 
-    // FIX — Comparaison correcte
     if (Number(fromAccount.balance) < amountNum) {
       throw new Error("Solde insuffisant");
     }
 
-    // Référence unique
     const baseRef = `TRI-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const debitRef = `${baseRef}-D`;
     const creditRef = `${baseRef}-C`;
 
-    // FIX — Mise à jour des soldes
     fromAccount.balance = Number(fromAccount.balance) - amountNum;
     toAccount.balance = Number(toAccount.balance) + amountNum;
 
     await fromAccount.save({ session });
     await toAccount.save({ session });
 
-    // Transaction débit
     const [txDebit] = await Transaction.create(
       [
         {
@@ -269,7 +334,6 @@ export const transfer = async (req, res) => {
       { session }
     );
 
-    // Transaction crédit
     const [txCredit] = await Transaction.create(
       [
         {
@@ -290,6 +354,15 @@ export const transfer = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // ✅ Notification succès (interne = pas de nom tiers)
+    await createNotification({
+      userId,
+      category: "TRANSACTION",
+      title: "Transfert interne réussi",
+      message: `Un transfert interne de ${amountNum} ${currency} a été effectué.`,
+      redirectUrl: "/transactions",
+    });
+
     return res.json({
       message: "Transfert interne réussi",
       reference: baseRef,
@@ -303,6 +376,14 @@ export const transfer = async (req, res) => {
     await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Erreur transfert :", error);
+
+    if (isBusinessError(error.message)) {
+      return notifyAndReturnBusinessError(req, res, {
+        title: "Transfert interne refusé",
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
@@ -330,7 +411,6 @@ export const transferUser = async (req, res) => {
       throw new Error("toUserId et amount sont obligatoires");
     }
 
-    // FIX — conversion
     const amountNum = Number(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       throw new Error("Montant invalide");
@@ -345,12 +425,8 @@ export const transferUser = async (req, res) => {
       }
     }
 
-    const fromAcc = await Account.findOne({
-      user: userId,
-      type: "COURANT",
-    }).session(session);
-
-    if (!fromAcc || fromAcc.status?.toUpperCase() !== "ACTIVE") {
+    const fromAcc = await Account.findOne({ user: userId, type: "COURANT" }).session(session);
+    if (!fromAcc || String(fromAcc.status || "").toUpperCase() !== "ACTIVE") {
       throw new Error("Votre compte courant est introuvable ou inactif");
     }
 
@@ -360,7 +436,7 @@ export const transferUser = async (req, res) => {
       status: "ACTIVE",
     }).session(session);
 
-    if (!toAcc || toAcc.status?.toUpperCase() !== "ACTIVE") {
+    if (!toAcc || String(toAcc.status || "").toUpperCase() !== "ACTIVE") {
       throw new Error("Le compte du destinataire est introuvable ou inactif");
     }
 
@@ -415,6 +491,28 @@ export const transferUser = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // 🆕 NOMS (DB) : expéditeur + destinataire
+    const senderName = await getUserDisplayName(userId);
+    const receiverName = await getUserDisplayName(toUserId);
+
+    // ✅ Notification succès (émetteur)
+    await createNotification({
+      userId,
+      category: "TRANSACTION",
+      title: "Transfert envoyé",
+      message: `Vous avez envoyé ${amountNum} ${currency} à ${receiverName}.`,
+      redirectUrl: "/transactions",
+    });
+
+    // ✅ Notification succès (destinataire)
+    await createNotification({
+      userId: toUserId,
+      category: "TRANSACTION",
+      title: "Transfert reçu",
+      message: `Vous avez reçu ${amountNum} ${currency} de ${senderName}.`,
+      redirectUrl: "/transactions",
+    });
+
     return res.json({
       message: "Transfert utilisateur effectué avec succès",
       debit: debitTx,
@@ -425,6 +523,14 @@ export const transferUser = async (req, res) => {
     await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Erreur transferUser :", error);
+
+    if (isBusinessError(error.message)) {
+      return notifyAndReturnBusinessError(req, res, {
+        title: "Transfert refusé",
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
@@ -471,20 +577,12 @@ export const transferToBeneficiary = async (req, res) => {
       throw new Error("fromAccountId, beneficiaryId et amount sont obligatoires");
     }
 
-    // FIX — conversion
     const amountNum = Number(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       throw new Error("Montant invalide");
     }
 
-    const amt = Number(amount);
-    if (Number.isNaN(amt) || amt <= 0) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ message: "Montant invalide" });
-    }
-
-    // ✅ idempotency (si déjà traité => renvoyer)
+    // Idempotency
     if (idempotencyKey) {
       const existing = await Transaction.findOne({ idempotencyKey }).session(session);
       if (existing) {
@@ -494,7 +592,6 @@ export const transferToBeneficiary = async (req, res) => {
       }
     }
 
-    // ✅ compte source (doit appartenir au user)
     const fromAccount = await Account.findOne({
       _id: fromAccountId,
       user: userId,
@@ -506,11 +603,10 @@ export const transferToBeneficiary = async (req, res) => {
       return res.status(404).json({ message: "Compte source introuvable ou inactif" });
     }
 
-    if (Number(account.balance) < amountNum) {
+    if (Number(fromAccount.balance) < amountNum) {
       throw new Error("Solde insuffisant");
     }
 
-    // ✅ bénéficiaire (appartient au user)
     const beneficiary = await Beneficiary.findOne({
       _id: beneficiaryId,
       user: userId,
@@ -522,7 +618,6 @@ export const transferToBeneficiary = async (req, res) => {
       return res.status(404).json({ message: "Bénéficiaire introuvable" });
     }
 
-    // ✅ Règle: UNIQUEMENT bénéficiaire interne existant
     if (beneficiary.type !== "INTERNAL" || !beneficiary.linkedUser) {
       await session.abortTransaction();
       session.endSession();
@@ -531,7 +626,6 @@ export const transferToBeneficiary = async (req, res) => {
       });
     }
 
-    // ✅ compte destination (compte courant du bénéficiaire)
     const toAccount = await Account.findOne({
       user: beneficiary.linkedUser,
       type: "COURANT",
@@ -546,10 +640,9 @@ export const transferToBeneficiary = async (req, res) => {
         .json({ message: "Compte courant du bénéficiaire introuvable ou inactif" });
     }
 
-    account.balance = Number(account.balance) - amountNum;
-    await account.save({ session });
+    fromAccount.balance = Number(fromAccount.balance) - amountNum;
+    await fromAccount.save({ session });
 
-    // ✅ double écriture comptable selon TON enum
     const [txDebit] = await Transaction.create(
       [
         {
@@ -574,12 +667,11 @@ export const transferToBeneficiary = async (req, res) => {
         {
           user: beneficiary.linkedUser,
           type: "TRANSFER_INTERNAL_CREDIT",
-          amount: amt,
+          amount: amountNum,
           currency,
           fromAccount: fromAccount._id,
           toAccount: toAccount._id,
           beneficiary: beneficiary._id,
-          // ⚠️ idempotencyKey uniquement sur le débit (souvent suffisant)
           reference,
           description,
           status: "SUCCESS",
@@ -591,12 +683,33 @@ export const transferToBeneficiary = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // 🆕 NOMS
+    const senderName = await getUserDisplayName(userId);
+    const receiverName = await getUserDisplayName(beneficiary.linkedUser);
+    const beneficiaryName =
+      beneficiary.name || beneficiary.fullName || beneficiary.label || receiverName || "le bénéficiaire";
+
+    // ✅ Notification succès (émetteur) avec NOM BENEFICIAIRE
+    await createNotification({
+      userId,
+      category: "TRANSACTION",
+      title: "Transfert effectué",
+      message: `Vous avez transféré ${amountNum} ${currency} à ${beneficiaryName}.`,
+      redirectUrl: "/transactions",
+    });
+
+    // ✅ Notification succès (destinataire) avec NOM EXPEDITEUR
+    await createNotification({
+      userId: beneficiary.linkedUser,
+      category: "TRANSACTION",
+      title: "Transfert reçu",
+      message: `Vous avez reçu ${amountNum} ${currency} de ${senderName}.`,
+      redirectUrl: "/transactions",
+    });
+
     return res.json({
       message: "Transfert interne vers bénéficiaire effectué avec succès",
-      transaction: {
-        debit: txDebit,
-        credit: txCredit,
-      },
+      transaction: { debit: txDebit, credit: txCredit },
       balanceAfter: fromAccount.balance,
       creditedToAccountId: toAccount._id,
     });
@@ -605,6 +718,14 @@ export const transferToBeneficiary = async (req, res) => {
     session.endSession();
 
     console.error("Erreur transferToBeneficiary :", error);
+
+    if (isBusinessError(error.message)) {
+      return notifyAndReturnBusinessError(req, res, {
+        title: "Transfert refusé",
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
@@ -614,12 +735,11 @@ export const transferToBeneficiary = async (req, res) => {
 // ----------------------------
 export const getPaymentServices = async (req, res) => {
   const services = [
-    { code: "EAU",         name: "Facture d'eau" },
+    { code: "EAU", name: "Facture d'eau" },
     { code: "ELECTRICITE", name: "Facture d'électricité" },
-    { code: "MOBILE",      name: "Recharge mobile" },
-    { code: "INTERNET",    name: "Facture Internet" },
+    { code: "MOBILE", name: "Recharge mobile" },
+    { code: "INTERNET", name: "Facture Internet" },
   ];
-
   return res.json({ services });
 };
 
@@ -644,13 +764,10 @@ export const payBill = async (req, res) => {
       description,
     } = req.body;
 
-    if (!amount || !serviceCode || !billNumber) {
-      throw new Error(
-        "amount, serviceCode et billNumber sont obligatoires"
-      );
+    if (!accountId || !amount || !serviceCode || !billNumber) {
+      throw new Error("accountId, amount, serviceCode et billNumber sont obligatoires");
     }
 
-    // FIX — conversion
     const amountNum = Number(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       throw new Error("Montant invalide");
@@ -674,7 +791,7 @@ export const payBill = async (req, res) => {
     }
 
     const account = await Account.findById(accountId).session(session);
-    if (!account || account.status?.toUpperCase() !== "ACTIVE") {
+    if (!account || String(account.status || "").toUpperCase() !== "ACTIVE") {
       throw new Error("Compte introuvable ou inactif");
     }
 
@@ -709,6 +826,17 @@ export const payBill = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // 🆕 Nom service payé (serviceName sinon serviceCode)
+    const paidService = serviceName || serviceCode;
+
+    await createNotification({
+      userId,
+      category: "TRANSACTION",
+      title: "Facture payée",
+      message: `Paiement ${paidService} de ${amountNum} ${currency} effectué (Facture: ${billNumber}).`,
+      redirectUrl: "/transactions",
+    });
+
     return res.json({
       message: "Paiement de facture effectué avec succès",
       transaction: tx,
@@ -718,6 +846,14 @@ export const payBill = async (req, res) => {
     await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Erreur payBill :", error);
+
+    if (isBusinessError(error.message)) {
+      return notifyAndReturnBusinessError(req, res, {
+        title: "Paiement refusé",
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };

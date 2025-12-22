@@ -5,12 +5,9 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import createNotification from "../utils/createNotification.js"; //ajouter
 
-
-//
 // 🔹 Utilitaires
-//
-
 // Générer un numéro de compte unique
 const generateAccountNumber = () => {
   const prefix = "SN-";
@@ -154,9 +151,16 @@ export const loginUser = async (req, res) => {
 
     // 4️⃣ Générer un token
     const token = generateToken(user._id);
-
     // (Optionnel) récupérer ses comptes directement
     const accounts = await Account.find({ user: user._id });
+
+    // ajouter  NOTIFICATION ()
+    await createNotification({
+      userId: user._id, // ✅ user existe ici
+      category: "SECURITY",
+      title: "Connexion réussie",
+      message: "Une connexion à votre compte a été effectuée avec succès.",
+    });
 
     return res.status(200).json({
       message: "Connexion réussie",
@@ -182,7 +186,7 @@ export const loginUser = async (req, res) => {
   }
 };
 
-//
+
 // 🔹 MOT DE PASSE OUBLIÉ
 //
 export const forgotPassword = async (req, res) => {
@@ -231,57 +235,6 @@ export const forgotPassword = async (req, res) => {
     return res.status(500).json({ message: "Erreur serveur" });
   }
 };
-
-//// 🔹 RÉINITIALISATION DU MOT DE PASSE
-// export const resetPassword = async (req, res) => {
-//   try {
-//     const { token } = req.params;
-//     const { password } = req.body;
-
-//     if (!password) {
-//       return res.status(400).json({
-//         message: "Le mot de passe est requis",
-//       });
-//     }
-
-//     // 🔐 Hasher le token reçu
-//     const resetTokenHash = crypto
-//       .createHash("sha256")
-//       .update(token)
-//       .digest("hex");
-
-//     // 🔎 Trouver utilisateur valide
-//     const user = await User.findOne({
-//       resetPasswordToken: resetTokenHash,
-//       resetPasswordExpires: { $gt: Date.now() },
-//     });
-
-//     if (!user) {
-//       return res.status(400).json({
-//         message: "Token invalide ou expiré",
-//       });
-//     }
-
-//     // 🔐 Hash nouveau mot de passe
-//     const salt = await bcrypt.genSalt(10);
-//     user.passwordHash = await bcrypt.hash(password, salt); 
-//     // ⚠️ change en user.password si besoin
-
-//     // ❌ Invalider token
-//     user.resetPasswordToken = undefined;
-//     user.resetPasswordExpires = undefined;
-
-//     await user.save();
-
-//     return res.status(200).json({
-//       message: "Mot de passe réinitialisé avec succès",
-//     });
-//   } catch (error) {
-//     console.error("Erreur resetPassword:", error);
-//     return res.status(500).json({ message: "Erreur serveur" });
-//   }
-// };
-
 
 // 🔹 RÉINITIALISATION DU MOT DE PASSE
 export const ChangementMdp = async (req, res) => {
@@ -334,42 +287,38 @@ export const ChangementMdp = async (req, res) => {
 };
 
 
+// ajouter PATCH /api/auth/change-password
+export const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
 
-//recuperation du user connecter
-// export const getMe = async (req, res) => {
-//   try {
-//     const user = await User.findById(req.user.id).select("-passwordHash");
-//     if (!user) {
-//       return res.status(404).json({ message: "Utilisateur non trouvé" });
-//     }
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        message: "Tous les champs sont obligatoires",
+      });
+    }
 
-//     res.json({ user });
-//   } catch (err) {
-//     console.error("Erreur getMe :", err);
-//     res.status(500).json({
-//       message: "Erreur serveur lors de la récupération du profil",
-//       error: err.message,
-//     });
-//   }
-// };
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur introuvable" });
+    }
 
-//udapte user
-// export const updateUser = async (req, res) => {
-//   try {
-//     const updates = req.body;
+    //  Comparer le mot de passe actuel avec passwordHash
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Mot de passe actuel incorrect" });
+    }
 
-//     const user = await User.findByIdAndUpdate(
-//       req.user.id,
-//       updates,
-//       { new: true }
-//     ).select("-passwordHash");
+    //  Hasher et sauvegarder le nouveau mot de passe
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await user.save();
 
-//     res.json({ user });
-//   } catch (err) {
-//     console.error("Erreur updateUser :", err);
-//     res.status(500).json({
-//       message: "Erreur serveur lors de la mise à jour du profil",
-//       error: err.message,
-//     });
-//   }
-// };
+    res.json({ message: "Mot de passe modifié avec succès" });
+  } catch (error) {
+    console.error("Erreur changePassword:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+
