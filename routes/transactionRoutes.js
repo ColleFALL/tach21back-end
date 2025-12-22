@@ -19,7 +19,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // POST /api/transactions/deposit
-router.post("/deposit", deposit);
+router.post("/deposit", deposit); 
 
 // POST /api/transactions/withdraw
 router.post("/withdraw", withdraw);

@@ -186,17 +186,6 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// ajouter a notification
-
-
-// // après login réussi
-// await createNotification({
-//   userId: req.user?._id || user._id,
-//   category: "SYSTEM",
-//   title: "Test notification",
-//   message: "Ceci est une notification de test.",
-// });
-
 
 // 🔹 MOT DE PASSE OUBLIÉ
 //
@@ -225,7 +214,7 @@ export const forgotPassword = async (req, res) => {
     await user.save();
 
     // Lien à envoyer
-    const resetURL = `http://localhost:5173/reset-password/${resetToken}`;
+    const resetURL = `http://localhost:5173/ChangementMdp/${resetToken}`;
 
     // Utilisation du service interne sendEmail
     await sendEmail({
@@ -247,45 +236,50 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-//
 // 🔹 RÉINITIALISATION DU MOT DE PASSE
-//
-export const resetPassword = async (req, res) => {
+export const ChangementMdp = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
 
-    // Hasher le token reçu pour comparer avec celui de la DB
+    if (!password) {
+      return res.status(400).json({
+        message: "Le mot de passe est requis",
+      });
+    }
+
+    // 🔐 Hasher le token reçu
     const resetTokenHash = crypto
       .createHash("sha256")
       .update(token)
       .digest("hex");
 
-    // Chercher l'utilisateur avec un token valide et non expiré
+    // 🔎 Trouver utilisateur valide
     const user = await User.findOne({
       resetPasswordToken: resetTokenHash,
       resetPasswordExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Token invalide ou expiré" });
+      return res.status(400).json({
+        message: "Token invalide ou expiré",
+      });
     }
 
-    // Hasher le nouveau mot de passe
+    // 🔐 Hash nouveau mot de passe
     const salt = await bcrypt.genSalt(10);
-    user.passwordHash = await bcrypt.hash(password, salt);
+    user.passwordHash = await bcrypt.hash(password, salt); 
+    // ⚠️ change en user.password si besoin
 
-    // Supprimer le token et sa date d'expiration
+    // ❌ Invalider token
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
     await user.save();
 
-    return res
-      .status(200)
-      .json({ message: "Mot de passe réinitialisé avec succès !" });
+    return res.status(200).json({
+      message: "Mot de passe réinitialisé avec succès",
+    });
   } catch (error) {
     console.error("Erreur resetPassword:", error);
     return res.status(500).json({ message: "Erreur serveur" });
