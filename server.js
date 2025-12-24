@@ -1,8 +1,9 @@
 // server.js
+import "dotenv/config"; //ajouter
 
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
+// import dotenv from "dotenv";
 import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";    
 import accountRoutes from "./routes/accountRoutes.js";
@@ -17,7 +18,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 
 
 
-dotenv.config();
+// dotenv.config();
 console.log(" MONGO_URI lu par le serveur :", process.env.MONGO_URI);
 console.log("MONGO_URI :", process.env.MONGO_URI);
 console.log("PORT :", process.env.PORT);
@@ -26,14 +27,16 @@ console.log("SMTP_HOST :", process.env.SMTP_HOST);
 console.log("SMTP_USER :", process.env.SMTP_USER);
 console.log("SMTP_FROM :", process.env.SMTP_FROM);
 
+console.log("ENV EMAIL_USER =", process.env.EMAIL_USER);
+console.log("ENV EMAIL_PASS =", process.env.EMAIL_PASS ? "OK" : "MISSING");
+
+
 
 const app = express();
 
 // Middlewares
 app.use(cors());
 app.use(express.json());
-
-
 
 // routes des api
 app.use("/api/auth", authRoutes);           // pour register/login (collègue)
@@ -47,8 +50,6 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/dev", devRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.post("/ChangementMdp/:token", ChangementMdp);
-
-
 
 
 // Connexion MongoDB

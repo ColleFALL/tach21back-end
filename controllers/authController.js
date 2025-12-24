@@ -148,7 +148,6 @@ export const loginUser = async (req, res) => {
         .status(400)
         .json({ message: "Identifiants invalides" });
     }
-
     // 4️⃣ Générer un token
     const token = generateToken(user._id);
     // (Optionnel) récupérer ses comptes directement

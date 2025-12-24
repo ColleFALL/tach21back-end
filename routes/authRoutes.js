@@ -20,7 +20,6 @@ router.post("/forgot-password", forgotPassword);
 router.post("/ChangementMdp/:token", ChangementMdp);
 
 // 🔐 CHANGER MOT DE PASSE (utilisateur connecté)
-// (optionnel, autre cas d’usage)
 router.patch("/change-password", authMiddleware);
 
 export default router;
