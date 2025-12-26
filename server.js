@@ -15,6 +15,7 @@ import beneficiaryRoutes from "./routes/beneficiaryRoutes.js";
 import devRoutes from "./routes/devRoutes.js";
 import  ChangementMdp  from "./routes/authRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js"; 
+import cardRoutes from "./routes/cardRoutes.js";
 
 
 
@@ -50,7 +51,7 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/dev", devRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.post("/ChangementMdp/:token", ChangementMdp);
-
+app.use("/api/cards", cardRoutes); //ajouter 
 
 // Connexion MongoDB
 mongoose

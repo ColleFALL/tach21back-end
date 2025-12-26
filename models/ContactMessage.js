@@ -21,7 +21,7 @@ const contactMessageSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // ✅ ajoute createdAt & updatedAt automatiquement
+    timestamps: true, //  ajoute createdAt & updatedAt automatiquement
   }
 );
 
