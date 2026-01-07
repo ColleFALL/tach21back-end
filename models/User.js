@@ -1,83 +1,57 @@
+// models/User.js
 import mongoose from "mongoose";
 
 // ✅ Extraire Schema depuis mongoose
 const { Schema, model } = mongoose;
 
-const userSchema = new Schema(
-  {
-    //ajouter
-    email: String,
-    password: String,
+// 🔹 Définition du schéma utilisateur
+const userSchema = new Schema({
+  fullName: { type: String, required: true, trim: true },
 
-    emailNotifications: {
-    type: Boolean,
-    default: true, // activé par défaut
-   },
-    fullName: {
-      type: String,
-      required: [true, "Le nom complet est obligatoire"],
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: [true, "L'email est obligatoire"],
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    phone: {
-      type: String,
-      trim: true,
-    },
-        // ✅ AJOUT : téléphone unique (sert d'identifiant pour virements internes)
-    phone: { 
-      type: String, 
-      required: true,
-      trim: true, 
-      unique: true 
-    },
-
-    passwordHash: {
-      type: String,
-      required: [true, "Le mot de passe est obligatoire"],
-    },
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user",
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    avatarUrl: {
-      type: String,
-      default: null,
-    },
-    pin: {
-      type: String,
-      default: null,
-    },
-    preferences: {
-      language: {
-        type: String,
-        enum: ["fr", "en"],
-        default: "fr",
-      },
-      notifications: {
-        email: { type: Boolean, default: true },
-        sms: { type: Boolean, default: false },
-        push: { type: Boolean, default: true },
-      },
-    },
-    resetPasswordToken: String,
-    resetPasswordExpires: Date,
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
   },
-  {
-    timestamps: true,
-  }
-);
 
-// ✅ Utiliser model() pour créer le modèle
-const User = model("User", userSchema);
-export default User;
+  phone: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+  },
+
+  passwordHash: {
+    type: String,
+    required: true,
+  },
+
+  role: {
+    type: String,
+    enum: ["user", "admin"],
+    default: "user",
+  },
+
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+
+  // 🔐 VALIDATION EMAIL
+  emailVerificationToken: String,
+  emailVerificationExpires: Date,
+
+  // 🔐 2FA EMAIL
+  twoFactorToken: String,
+  twoFactorExpires: Date,
+
+  // 🔐 RESET PASSWORD
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
+
+}, { timestamps: true });
+
+// 🔑 Export du modèle User (par défaut)
+export default model("User", userSchema);

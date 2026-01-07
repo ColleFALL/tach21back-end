@@ -1,13 +1,14 @@
 // controllers/authController.js
-import User from "../models/User.js";
-import Account from "../models/Account.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
-import createNotification from "../utils/createNotification.js"; //ajouter
+import User from "../models/User.js";
+import Account from "../models/Account.js"; // manquant dans ton code
+import createNotification from "../utils/createNotification.js";
 
 // 🔹 Utilitaires
+
 // Générer un numéro de compte unique
 const generateAccountNumber = () => {
   const prefix = "SN-";
@@ -22,58 +23,55 @@ const generateToken = (userId) => {
   });
 };
 
-// Fonction utilitaire pour envoyer des emails
-const sendEmail = async ({ to, subject, html }) => {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, // mot de passe d'application Gmail
-    },
-  });
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    html,
-  });
+    
+// 📧 Fonction utilitaire pour envoyer des emails
+const sendEmail = async ({ to, subject, html }) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, // mot de passe d’application Gmail
+      },
+    });
+
+    await transporter.sendMail({
+      from: `WECCO <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html,
+    });
+
+    console.log(`📧 Email envoyé à ${to}`);
+  } catch (error) {
+    console.error("❌ Erreur envoi email :", error);
+    throw error;
+  }
 };
 
-//
+
+
 // 🔹 INSCRIPTION
-//
 export const registerUser = async (req, res) => {
   try {
     const { fullName, email, phone, password, confirmPassword } = req.body;
 
-    // 1️⃣ Vérifier les champs obligatoires
     if (!fullName || !email || !password || !confirmPassword) {
-      return res
-        .status(400)
-        .json({ message: "Tous les champs sont obligatoires" });
+      return res.status(400).json({ message: "Tous les champs sont obligatoires" });
     }
 
-    // 2️⃣ Vérifier la correspondance des mots de passe
     if (password !== confirmPassword) {
-      return res
-        .status(400)
-        .json({ message: "Les mots de passe ne correspondent pas" });
+      return res.status(400).json({ message: "Les mots de passe ne correspondent pas" });
     }
 
-    // 3️⃣ Vérifier si l'email existe déjà
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: "Cet email est déjà utilisé" });
+      return res.status(400).json({ message: "Cet email est déjà utilisé" });
     }
 
-    // 4️⃣ Hasher le mot de passe
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 5️⃣ Créer l'utilisateur avec passwordHash
     const user = await User.create({
       fullName,
       email,
@@ -81,15 +79,13 @@ export const registerUser = async (req, res) => {
       passwordHash: hashedPassword,
     });
 
-    // 6️⃣ Créer automatiquement le compte COURANT
+    // Créer le compte courant
     let accountNumber;
-    let existingAccount;
     do {
       accountNumber = generateAccountNumber();
-      existingAccount = await Account.findOne({ number: accountNumber });
-    } while (existingAccount);
+    } while (await Account.findOne({ number: accountNumber }));
 
-    const currentAccount = await Account.create({
+    await Account.create({
       user: user._id,
       number: accountNumber,
       type: "COURANT",
@@ -98,125 +94,197 @@ export const registerUser = async (req, res) => {
       status: "ACTIVE",
     });
 
-    // 7️⃣ Générer un token
-    const token = generateToken(user._id);
+    // Générer token de validation email
+    const emailToken = crypto.randomBytes(32).toString("hex");
+    const emailTokenHash = crypto.createHash("sha256").update(emailToken).digest("hex");
 
-    // 8️⃣ Réponse
+    user.emailVerificationToken = emailTokenHash;
+    user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+    await user.save();
+
+    const verifyURL = `http://localhost:5173/verify-email/${emailToken}`;
+
+    await sendEmail({
+      to: user.email,
+      subject: "Validation de votre compte",
+      html: `
+        <h3>Bienvenue ${user.fullName}</h3>
+        <p>Cliquez pour activer votre compte :</p>
+        <a href="${verifyURL}">${verifyURL}</a>
+        <p>Ce lien expire dans 24 heures.</p>
+      `,
+    });
+
     return res.status(201).json({
-      message: "Utilisateur créé avec succès et compte courant ouvert",
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        isVerified: user.isVerified,
-      },
-      account: currentAccount,
-      token,
+      message: "Compte créé avec succès. Veuillez vérifier votre email.",
     });
   } catch (error) {
     console.error("Erreur inscription :", error);
-    return res.status(500).json({
-      message: "Erreur serveur lors de l'inscription",
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Erreur serveur lors de l'inscription" });
   }
 };
 
-//
 // 🔹 CONNEXION
-//
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email et mot de passe sont obligatoires" });
-    }
+    if (!email || !password) return res.status(400).json({ message: "Email et mot de passe sont obligatoires" });
 
     const user = await User.findOne({ email });
-    if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Identifiants invalides" });
-    }
+    if (!user) return res.status(400).json({ message: "Identifiants invalides" });
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      return res
-        .status(400)
-        .json({ message: "Identifiants invalides" });
-    }
+    if (!isMatch) return res.status(400).json({ message: "Identifiants invalides" });
 
-    // 4️⃣ Générer un token
-    const token = generateToken(user._id);
-    // (Optionnel) récupérer ses comptes directement
-    const accounts = await Account.find({ user: user._id });
+    if (!user.isVerified) return res.status(403).json({ message: "Veuillez vérifier votre email avant de vous connecter" });
 
-    // ajouter  NOTIFICATION ()
+    // Générer token 2FA
+    const twoFactorToken = crypto.randomBytes(32).toString("hex");
+    const twoFactorTokenHash = crypto.createHash("sha256").update(twoFactorToken).digest("hex");
+
+    user.twoFactorToken = twoFactorTokenHash;
+    user.twoFactorExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    const twoFactorURL = `http://localhost:5173/2fa/verify/${twoFactorToken}`;
+
+    await sendEmail({
+      to: user.email,
+      subject: "Connexion sécurisée",
+      html: `
+        <p>Bonjour ${user.fullName},</p>
+        <p>Cliquez sur le lien ci-dessous pour finaliser votre connexion :</p>
+        <a href="${twoFactorURL}">${twoFactorURL}</a>
+        <p>Ce lien expire dans 10 minutes.</p>
+        <p>Si ce n'était pas vous, ignorez ce message.</p>
+      `,
+    });
+
     await createNotification({
-      userId: user._id, // ✅ user existe ici
+      userId: user._id,
       category: "SECURITY",
       title: "Connexion réussie",
       message: "Une connexion à votre compte a été effectuée avec succès.",
     });
 
+    return res.status(200).json({ message: "Lien de connexion 2FA envoyé par email" });
+  } catch (error) {
+    console.error("Erreur connexion :", error);
+    return res.status(500).json({ message: "Erreur serveur lors de la connexion", error: error.message });
+  }
+};
+
+// 🔹 VERIFY EMAIL
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      emailVerificationToken: tokenHash,
+      emailVerificationExpires: { $gt: Date.now() },
+    });
+
+    if (!user) return res.status(400).json({ message: "Lien invalide ou expiré" });
+
+    user.isVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    return res.status(200).json({ message: "Email vérifié avec succès !" });
+  } catch (error) {
+    console.error("Erreur verifyEmail:", error);
+    return res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+// 🔹 VERIFY 2FA
+export const verifyTwoFactor = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      twoFactorToken: tokenHash,
+      twoFactorExpires: { $gt: Date.now() },
+    });
+
+    if (!user) return res.status(400).json({ message: "Lien invalide ou expiré" });
+
+    user.twoFactorToken = undefined;
+    user.twoFactorExpires = undefined;
+    await user.save();
+
+    const jwtToken = generateToken(user._id);
+
     return res.status(200).json({
       message: "Connexion réussie",
+      token: jwtToken,
       user: {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
-        phone: user.phone,
         role: user.role,
         isVerified: user.isVerified,
-        avatarUrl: user.avatarUrl,  
-
       },
-      accounts,
-      token,
     });
   } catch (error) {
-    console.error("Erreur connexion :", error);
-    return res.status(500).json({
-      message: "Erreur serveur lors de la connexion",
-      error: error.message,
-    });
+    console.error("Erreur 2FA :", error);
+    return res.status(500).json({ message: "Erreur serveur lors de la validation 2FA" });
   }
 };
+      export const resendVerificationEmail = async (req, res) => {
+        const { email } = req.body;
+
+        const user = await User.findOne({ email });
+        if (!user) {
+          return res.status(400).json({ message: "Utilisateur introuvable" });
+        }
+
+        if (user.isVerified) {
+          return res.status(400).json({ message: "Compte déjà vérifié" });
+        }
+
+        const emailToken = crypto.randomBytes(32).toString("hex");
+        const emailTokenHash = crypto.createHash("sha256").update(emailToken).digest("hex");
+
+        user.emailVerificationToken = emailTokenHash;
+        user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+        await user.save();
+
+        const verifyURL = `http://localhost:5173/verify-email/${emailToken}`;
+
+        await sendEmail({
+          to: user.email,
+          subject: "Validation de votre compte",
+          html: `
+            <p>Cliquez pour valider votre compte :</p>
+            <a href="${verifyURL}">${verifyURL}</a>
+          `,
+        });
+
+        res.json({ message: "Email de validation renvoyé" });
+      };
 
 
-// 🔹 MOT DE PASSE OUBLIÉ
-//
+// 🔹 FORGOT PASSWORD
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-
-    // Vérifier si l'email existe
     const user = await User.findOne({ email });
-    if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Aucun compte trouvé avec cet email" });
-    }
+    if (!user) return res.status(400).json({ message: "Aucun compte trouvé avec cet email" });
 
-    // Générer token
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenHash = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
+    const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
 
-    // Stocker token dans la DB
     user.resetPasswordToken = resetTokenHash;
     user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 min
     await user.save();
 
-    // Lien à envoyer
     const resetURL = `http://localhost:5173/ChangementMdp/${resetToken}`;
 
-    // Utilisation du service interne sendEmail
     await sendEmail({
       to: email,
       subject: "Réinitialisation de mot de passe",
@@ -227,90 +295,56 @@ export const forgotPassword = async (req, res) => {
       `,
     });
 
-    return res
-      .status(200)
-      .json({ message: "Email de réinitialisation envoyé !" });
+    return res.status(200).json({ message: "Email de réinitialisation envoyé !" });
   } catch (error) {
     console.error("Erreur forgotPassword:", error);
     return res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
-// 🔹 RÉINITIALISATION DU MOT DE PASSE
+// 🔹 RESET PASSWORD
 export const ChangementMdp = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
 
-    if (!password) {
-      return res.status(400).json({
-        message: "Le mot de passe est requis",
-      });
-    }
+    if (!password) return res.status(400).json({ message: "Le mot de passe est requis" });
 
-    // 🔐 Hasher le token reçu
-    const resetTokenHash = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
+    const resetTokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-    // 🔎 Trouver utilisateur valide
     const user = await User.findOne({
       resetPasswordToken: resetTokenHash,
       resetPasswordExpires: { $gt: Date.now() },
     });
 
-    if (!user) {
-      return res.status(400).json({
-        message: "Token invalide ou expiré",
-      });
-    }
+    if (!user) return res.status(400).json({ message: "Token invalide ou expiré" });
 
-    // 🔐 Hash nouveau mot de passe
-    const salt = await bcrypt.genSalt(10);
-    user.passwordHash = await bcrypt.hash(password, salt); 
-    // ⚠️ change en user.password si besoin
-
-    // ❌ Invalider token
+    user.passwordHash = await bcrypt.hash(password, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
-
     await user.save();
 
-    return res.status(200).json({
-      message: "Mot de passe réinitialisé avec succès",
-    });
+    return res.status(200).json({ message: "Mot de passe réinitialisé avec succès" });
   } catch (error) {
     console.error("Erreur resetPassword:", error);
     return res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
-
-// ajouter PATCH /api/auth/change-password
+// 🔹 CHANGE PASSWORD
 export const changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        message: "Tous les champs sont obligatoires",
-      });
-    }
+    if (!currentPassword || !newPassword) return res.status(400).json({ message: "Tous les champs sont obligatoires" });
 
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur introuvable" });
-    }
+    if (!user) return res.status(404).json({ message: "Utilisateur introuvable" });
 
-    //  Comparer le mot de passe actuel avec passwordHash
     const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Mot de passe actuel incorrect" });
-    }
+    if (!isMatch) return res.status(401).json({ message: "Mot de passe actuel incorrect" });
 
-    //  Hasher et sauvegarder le nouveau mot de passe
     user.passwordHash = await bcrypt.hash(newPassword, 10);
     await user.save();
 
@@ -320,5 +354,3 @@ export const changePassword = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur" });
   }
 };
-
-

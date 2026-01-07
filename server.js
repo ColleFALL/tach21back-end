@@ -32,7 +32,7 @@ const app = express();
 // Middlewares
 app.use(cors());
 app.use(express.json());
-console.log("✅ beneficiary routes mounted on /api/beneficiary");
+
 
 
 // routes des api
@@ -45,6 +45,7 @@ app.use("/api", supportRoutes);   // pour le support des mssages
 app.use("/api/beneficiaries", beneficiaryRoutes); //pour les beneficier
 app.use("/uploads", express.static("uploads"));
 app.use("/api/dev", devRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.post("/ChangementMdp/:token", ChangementMdp);
 
 

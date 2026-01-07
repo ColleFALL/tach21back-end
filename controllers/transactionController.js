@@ -754,6 +754,7 @@ export const payBill = async (req, res) => {
     const userId = getUserIdOrThrow(req);
 
     const {
+      accountId,
       amount,
       serviceCode,
       serviceName,
@@ -763,6 +764,7 @@ export const payBill = async (req, res) => {
       reference,
       description,
     } = req.body;
+
 
     if (!accountId || !amount || !serviceCode || !billNumber) {
       throw new Error("accountId, amount, serviceCode et billNumber sont obligatoires");
