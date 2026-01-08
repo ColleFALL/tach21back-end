@@ -6,5 +6,9 @@ const router = express.Router();
 
 router.get("/preferences", authMiddleware, getPreferences);
 router.put("/preferences", authMiddleware, updatePreferences);
-
+// router.put(
+//   "/email-notifications",
+//   authMiddleware,
+//   updateEmailNotification
+// );//ajouter pour la route des notifications par alertes
 export default router;

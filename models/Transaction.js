@@ -11,6 +11,20 @@ const transactionSchema = new Schema(
       ref: "User",
       required: true,
     },
+    type: {
+  type: String,
+  enum: [
+    "DEPOSIT",
+    "WITHDRAWAL",
+    "TRANSFER_INTERNAL_DEBIT",
+    "TRANSFER_INTERNAL_CREDIT",
+    "TRANSFER_USER_DEBIT",
+    "TRANSFER_USER_CREDIT",
+    "TRANSFER_EXTERNAL",
+    "BILL_PAYMENT"
+  ],
+  required: true,
+},
 
     // type d'opération
     
@@ -39,6 +53,7 @@ const transactionSchema = new Schema(
       ref: "Account",
       default: null,
     },
+    
 
     // autre utilisateur lié (pour transfert entre utilisateurs)
     relatedUser: {

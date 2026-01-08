@@ -3,37 +3,23 @@ import {
   registerUser,
   loginUser,
   forgotPassword,
-  resetPassword,
-  // getMe 
+  ChangementMdp,
 } from "../controllers/authController.js";
-// import { authMiddleware } from "../middlewares/authMiddleware.js";
-
+import { authMiddleware } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// INSCRIPTION
+// AUTH CLASSIQUE
 router.post("/register", registerUser);
-
-// CONNEXION
 router.post("/login", loginUser);
 
-// MOT DE PASSE OUBLIÉ
+// 🔑 MOT DE PASSE OUBLIÉ (envoi email)
 router.post("/forgot-password", forgotPassword);
-// RÉINITIALISATION DU MOT DE PASSE
-router.post("/reset-password/:token", resetPassword);
-//Recuperation du User  Connecte
-// router.get("/me", authMiddleware, getMe);
-//udapte user
 
-// router.post("/update", authMiddleware, updateUser);
+// 🔁 RESET PASSWORD (APRÈS CLIC SUR LIEN EMAIL)
+router.post("/ChangementMdp/:token", ChangementMdp);
 
-
-
-
+// 🔐 CHANGER MOT DE PASSE (utilisateur connecté)
+router.patch("/change-password", authMiddleware);
 
 export default router;
-
-
-
-
-    
