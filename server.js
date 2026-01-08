@@ -1,10 +1,9 @@
-// server.js
+
 import "dotenv/config"; //ajouter
 
 import express from "express";
 import cors from "cors";
-// import dotenv from "dotenv";
-import mongoose from "mongoose";
+
 import authRoutes from "./routes/authRoutes.js";    
 import accountRoutes from "./routes/accountRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
@@ -70,29 +69,116 @@ mongoose
     console.error(" Erreur connexion MongoDB :", err.message);
   });
 
-  // Route temporaire pour les graphiques
-app.get("/api/charts", (req, res) => {
-  const line = [
-    { month: "Jan", revenus: 4000, depenses: 2500 },
-    { month: "Fév", revenus: 3000, depenses: 1400 },
-    { month: "Mar", revenus: 5000, depenses: 3500 },
-    { month: "Avr", revenus: 4500, depenses: 3600 },
-    { month: "Mai", revenus: 6000, depenses: 4700 },
-    { month: "Jun", revenus: 5500, depenses: 3600 },
-  ];
 
-  const bar = [
-    { name: "Alimentation", value: 850 },
-    { name: "Transport", value: 400 },
-    { name: "Logement", value: 1200 },
-    { name: "Loisirs", value: 350 },
-    { name: "Santé", value: 280 },
-  ];
 
-  const pie = [
-    { name: "Dépenses", value: 3130 },
-    { name: "Revenus", value: 5500 },
-  ];
+app.get("/api/charts", async (req, res) => {
+  try {
+    // ===============================
+    // TYPES MÉTIER (mêmes que l’historique)
+    // ===============================
+    const INCOME_TYPES = [
+      "DEPOSIT",
+      "TRANSFER_INTERNAL_CREDIT",
+      "TRANSFER_USER_CREDIT",
+    ];
 
-  res.json({ line, bar, pie });
+    const EXPENSE_TYPES = [
+      "WITHDRAWAL",
+      "TRANSFER_INTERNAL_DEBIT",
+      "TRANSFER_USER_DEBIT",
+      "BILL_PAYMENT",
+    ];
+
+    // ===============================
+    // 1. LINE CHART (Revenus vs Dépenses par mois)
+    // ===============================
+    const lineAgg = await Transaction.aggregate([
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+
+          revenus: {
+            $sum: {
+              $cond: [{ $in: ["$type", INCOME_TYPES] }, "$amount", 0],
+            },
+          },
+
+          depenses: {
+            $sum: {
+              $cond: [{ $in: ["$type", EXPENSE_TYPES] }, "$amount", 0],
+            },
+          },
+        },
+      },
+      { $sort: { "_id": 1 } },
+    ]);
+
+    const MONTHS = [
+      "Jan", "Fév", "Mar", "Avr", "Mai", "Jun",
+      "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc",
+    ];
+
+    const line = lineAgg.map((m) => ({
+      month: MONTHS[m._id - 1],
+      revenus: m.revenus,
+      depenses: m.depenses,
+    }));
+
+    // ===============================
+    // 2. BAR + PIE (factures depuis l’historique)
+    // ===============================
+    const billsAgg = await Transaction.aggregate([
+      {
+        $match: {
+          type: "BILL_PAYMENT",
+          status: "SUCCESS",
+        },
+      },
+      {
+        $group: {
+          _id: "$serviceName",
+          total: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    // Correspondance EXACTE avec le frontend
+    const CATEGORIES = [
+      { label: "Eau", keys: ["eau"] },
+      { label: "Électricité", keys: ["electricite", "électricité"] },
+      { label: "Internet", keys: ["internet"] },
+      { label: "Mobile", keys: ["mobile", "telephone", "tel"] },
+    ];
+
+    const bar = CATEGORIES.map((cat) => {
+      const found = billsAgg.find((b) =>
+        cat.keys.some((k) =>
+          (b._id || "").toLowerCase().includes(k)
+        )
+      );
+
+      return {
+        name: cat.label,
+        value: found ? found.total : 0,
+      };
+    });
+
+    const pie = bar.map((b) => ({
+      name: b.name,
+      value: b.value,
+    }));
+
+    // ===============================
+    // RESPONSE
+    // ===============================
+    res.json({ line, bar, pie });
+  } catch (error) {
+    console.error("Erreur charts :", error);
+    res.status(500).json({
+      message: "Erreur lors du chargement des graphiques",
+    });
+  }
 });
+
+import mongoose from "mongoose";
+import Transaction from "./models/Transaction.js";

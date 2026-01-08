@@ -25,7 +25,7 @@ router.put("/profile", authMiddleware, updateProfile);
 // Optionnel : route pour PIN
 router.post("/profile/set-pin", authMiddleware, setPin);
  //route pour le photo de profile
-//  router.post("/profile/avatar", authMiddleware, upload.single("avatar"), updateAvatar);
+ router.post("/profile/avatar", authMiddleware, upload.single("avatar"), updateAvatar);
 // 📸 NOUVELLE ROUTE : upload avatar
 router.post(
   "/profile/avatar",
