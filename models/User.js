@@ -25,10 +25,10 @@ const userSchema = new Schema(
       lowercase: true,
       trim: true,
     },
-    phone: {
-      type: String,
-      trim: true,
-    },
+    // phone: {
+    //   type: String,
+    //   trim: true,
+    // },
         // ✅ AJOUT : téléphone unique (sert d'identifiant pour virements internes)
     phone: { 
       type: String, 

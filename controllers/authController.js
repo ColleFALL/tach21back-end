@@ -7,7 +7,7 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 import createNotification from "../utils/createNotification.js"; //ajouter
 
-// 🔹 Utilitaires
+//  Utilitaires
 // Générer un numéro de compte unique
 const generateAccountNumber = () => {
   const prefix = "SN-";
@@ -40,9 +40,7 @@ const sendEmail = async ({ to, subject, html }) => {
   });
 };
 
-//
-// 🔹 INSCRIPTION
-//
+//  INSCRIPTION
 export const registerUser = async (req, res) => {
   try {
     const { fullName, email, phone, password, confirmPassword } = req.body;
@@ -155,7 +153,7 @@ export const loginUser = async (req, res) => {
 
     // ajouter  NOTIFICATION ()
     await createNotification({
-      userId: user._id, // ✅ user existe ici
+      userId: user._id, //  user existe ici
       category: "SECURITY",
       title: "Connexion réussie",
       message: "Une connexion à votre compte a été effectuée avec succès.",
@@ -185,9 +183,7 @@ export const loginUser = async (req, res) => {
   }
 };
 
-
-// 🔹 MOT DE PASSE OUBLIÉ
-//
+//  MOT DE PASSE OUBLIÉ
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -199,7 +195,6 @@ export const forgotPassword = async (req, res) => {
         .status(400)
         .json({ message: "Aucun compte trouvé avec cet email" });
     }
-
     // Générer token
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenHash = crypto
@@ -235,7 +230,7 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-// 🔹 RÉINITIALISATION DU MOT DE PASSE
+//  RÉINITIALISATION DU MOT DE PASSE
 export const ChangementMdp = async (req, res) => {
   try {
     const { token } = req.params;
@@ -247,13 +242,13 @@ export const ChangementMdp = async (req, res) => {
       });
     }
 
-    // 🔐 Hasher le token reçu
+    //  Hasher le token reçu
     const resetTokenHash = crypto
       .createHash("sha256")
       .update(token)
       .digest("hex");
 
-    // 🔎 Trouver utilisateur valide
+    //  Trouver utilisateur valide
     const user = await User.findOne({
       resetPasswordToken: resetTokenHash,
       resetPasswordExpires: { $gt: Date.now() },
@@ -265,12 +260,12 @@ export const ChangementMdp = async (req, res) => {
       });
     }
 
-    // 🔐 Hash nouveau mot de passe
+    //  Hash nouveau mot de passe
     const salt = await bcrypt.genSalt(10);
     user.passwordHash = await bcrypt.hash(password, salt); 
-    // ⚠️ change en user.password si besoin
+    //  change en user.password si besoin
 
-    // ❌ Invalider token
+    //  Invalider token
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
