@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const cardSchema = new mongoose.Schema(
   {
-    // ✅ 1 carte par user
+    //  1 carte par user
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -13,15 +13,15 @@ const cardSchema = new mongoose.Schema(
 
     brand: { type: String, default: "VISA" },
 
-    // ✅ on stocke seulement last4 (sécurisé)
+    //  on stocke seulement last4 (sécurisé)
     last4: { type: String, required: true },
 
     expiryMonth: { type: Number, required: true },
     expiryYear: { type: Number, required: true },
 
-    // ✅ nom du titulaire
+    //  nom du titulaire
     // cardholderName: { type: String, required: true },
-    cardholderName: { type: String, default: "Client" }, // ✅ pas required
+    cardholderName: { type: String, default: "Client" }, //  pas required
 
 
     status: {
@@ -29,7 +29,7 @@ const cardSchema = new mongoose.Schema(
       enum: ["ACTIVE", "FROZEN", "BLOCKED"],
       default: "ACTIVE",
     },
-     // ✅ NEW — limites
+     //  NEW — limites
     limits: {
       daily: { type: Number, default: 200000 },   // ex: 200 000 FCFA / jour
       monthly: { type: Number, default: 2000000 } // ex: 2 000 000 FCFA / mois

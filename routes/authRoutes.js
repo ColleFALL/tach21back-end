@@ -10,16 +10,17 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 const router = express.Router();
 
 // AUTH CLASSIQUE
+
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 
-// 🔑 MOT DE PASSE OUBLIÉ (envoi email)
+//  MOT DE PASSE OUBLIÉ (envoi email)
 router.post("/forgot-password", forgotPassword);
 
-// 🔁 RESET PASSWORD (APRÈS CLIC SUR LIEN EMAIL)
+//  RESET PASSWORD (APRÈS CLIC SUR LIEN EMAIL)
 router.post("/ChangementMdp/:token", ChangementMdp);
 
-// 🔐 CHANGER MOT DE PASSE (utilisateur connecté)
+//  CHANGER MOT DE PASSE (utilisateur connecté)
 router.patch("/change-password", authMiddleware);
 
 export default router;

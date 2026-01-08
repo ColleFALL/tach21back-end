@@ -11,12 +11,9 @@ import profileRoutes from "./routes/profileRoutes.js";
 import preferenceRoutes from "./routes/preferenceRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import beneficiaryRoutes from "./routes/beneficiaryRoutes.js";
-import devRoutes from "./routes/devRoutes.js";
 import  ChangementMdp  from "./routes/authRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js"; 
 import cardRoutes from "./routes/cardRoutes.js";
-
-
 
 // dotenv.config();
 console.log(" MONGO_URI lu par le serveur :", process.env.MONGO_URI);
@@ -26,18 +23,14 @@ console.log("JWT_SECRET :", process.env.JWT_SECRET);
 console.log("SMTP_HOST :", process.env.SMTP_HOST);
 console.log("SMTP_USER :", process.env.SMTP_USER);
 console.log("SMTP_FROM :", process.env.SMTP_FROM);
-
 console.log("ENV EMAIL_USER =", process.env.EMAIL_USER);
 console.log("ENV EMAIL_PASS =", process.env.EMAIL_PASS ? "OK" : "MISSING");
 
 
-
 const app = express();
-
 // Middlewares
 app.use(cors());
 app.use(express.json());
-
 // routes des api
 app.use("/api/auth", authRoutes);           // pour register/login (collègue)
 app.use("/api/accounts", accountRoutes);    // pour les comptes
@@ -47,17 +40,15 @@ app.use("/api", preferenceRoutes); //pour les pereferences
 app.use("/api", supportRoutes);   // pour le support des mssages
 app.use("/api/beneficiaries", beneficiaryRoutes); //pour les beneficier
 app.use("/uploads", express.static("uploads"));
-app.use("/api/dev", devRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.post("/ChangementMdp/:token", ChangementMdp);
 app.use("/api/cards", cardRoutes); //ajouter 
-
 // Connexion MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log(" Connecté à MongoDB"); 
-       console.log(" DB utilisée :", mongoose.connection.name);  // 👈 AJOUT
+       console.log(" DB utilisée :", mongoose.connection.name);  //  AJOUT
 
     // Lancement du serveur
     const PORT = process.env.PORT || 5000;

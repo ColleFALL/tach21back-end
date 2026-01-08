@@ -73,38 +73,36 @@ export const updateProfile = async (req, res) => {
 };
 
 // // 🔹 PUT /api/profile/change-password
-// export const changePassword = async (req, res) => {
-//   try {
-//     const userId = req.user.id;
-//     const { currentPassword, newPassword } = req.body;
+export const changePassword = async (req, res) => {
+  try {
+    const userId = req.userId; // ✅ cohérent avec le reste
 
-//     if (!currentPassword || !newPassword) {
-//       return res.status(400).json({
-//         message: "Tous les champs sont obligatoires",
-//       });
-//     }
+    const { currentPassword, newPassword } = req.body;
 
-//     const user = await User.findById(userId);
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Tous les champs sont obligatoires" });
+    }
 
-//     const isMatch = await bcrypt.compare(
-//       currentPassword,
-//       user.password
-//     );
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
+    }
 
-//     if (!isMatch) {
-//       return res.status(401).json({
-//         message: "Mot de passe actuel incorrect",
-//       });
-//     }
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash); // ✅ ICI
+    if (!isMatch) {
+      return res.status(401).json({ message: "Mot de passe actuel incorrect" });
+    }
 
-//     user.password = await bcrypt.hash(newPassword, 10);
-//     await user.save();
+    user.passwordHash = await bcrypt.hash(newPassword, 10); // ✅ ICI
+    await user.save();
 
-//     res.json({ message: "Mot de passe modifié avec succès" });
-//   } catch (error) {
-//     res.status(500).json({ message: "Erreur serveur" });
-//   }
-// };
+    return res.json({ message: "Mot de passe modifié avec succès" });
+  } catch (error) {
+    console.error("Erreur changePassword :", error);
+    return res.status(500).json({ message: "Erreur serveur", error: error.message });
+  }
+};
+
 
 
 // 🔹 (Optionnel) POST /api/profile/set-pin
